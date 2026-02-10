@@ -26,7 +26,7 @@ Hệ thống quản lý quán cafe thông minh với tích hợp AI cho dự đo
 ## 🛠️ Công nghệ sử dụng
 
 ### Backend
-- **Django 4.2.9**: Web framework
+- **Django 4.2.26 (security patched)**: Web framework
 - **PostgreSQL/SQLite**: Database
 - **Django REST Framework**: API
 

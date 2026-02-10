@@ -144,7 +144,7 @@ All requirements from the problem statement have been successfully implemented.
 ### 9. Configuration Files ✅
 **requirements.txt**:
 ```
-✓ Django==4.2.9
+✓ Django==4.2.26
 ✓ psycopg2-binary (PostgreSQL support)
 ✓ django-environ & python-decouple
 ✓ Pillow (Image handling)
