@@ -1,0 +1,270 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}POS - Tạo đơn hàng{% endblock %}
+
+{% block content %}
+<h2 class="mb-4"><i class="bi bi-cart-plus"></i> POS - Điểm bán hàng</h2>
+
+<div class="row">
+    <!-- Product Grid -->
+    <div class="col-lg-8">
+        <div class="card shadow mb-4">
+            <div class="card-header">
+                <h6 class="m-0 font-weight-bold">Chọn sản phẩm</h6>
+            </div>
+            <div class="card-body">
+                <div class="product-grid">
+                    {% for product in products %}
+                    <div class="product-card" onclick="selectProduct({{ product.id }}, '{{ product.name }}', {{ product.price_medium|default:0 }})">
+                        {% if product.image %}
+                        <img src="{{ product.image.url }}" alt="{{ product.name }}">
+                        {% else %}
+                        <div class="bg-secondary text-white d-flex align-items-center justify-content-center" style="height: 150px;">
+                            <i class="bi bi-cup fa-3x"></i>
+                        </div>
+                        {% endif %}
+                        <div class="product-name">{{ product.name }}</div>
+                        <div class="product-price">
+                            {% if product.price_small %}S: {{ product.price_small|floatformat:0 }}đ{% endif %}
+                            {% if product.price_medium %}M: {{ product.price_medium|floatformat:0 }}đ{% endif %}
+                            {% if product.price_large %}L: {{ product.price_large|floatformat:0 }}đ{% endif %}
+                        </div>
+                    </div>
+                    {% empty %}
+                    <div class="col-12 text-center py-4">
+                        <p class="text-muted">Chưa có sản phẩm</p>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Shopping Cart -->
+    <div class="col-lg-4">
+        <div class="card shadow mb-4">
+            <div class="card-header bg-primary text-white">
+                <h6 class="m-0"><i class="bi bi-cart"></i> Giỏ hàng</h6>
+            </div>
+            <div class="card-body">
+                <!-- Customer Search -->
+                <div class="mb-3">
+                    <label>Số điện thoại khách hàng</label>
+                    <div class="input-group">
+                        <input type="text" class="form-control" id="customerPhone" placeholder="0123456789">
+                        <button class="btn btn-outline-secondary" onclick="searchCustomer()">
+                            <i class="bi bi-search"></i>
+                        </button>
+                    </div>
+                    <small id="customerInfo" class="text-muted"></small>
+                </div>
+
+                <!-- Cart Items -->
+                <div id="cartItems" class="mb-3">
+                    <p class="text-muted text-center">Giỏ hàng trống</p>
+                </div>
+
+                <!-- Total -->
+                <div class="border-top pt-3">
+                    <div class="d-flex justify-content-between mb-2">
+                        <strong>Tổng cộng:</strong>
+                        <strong id="totalAmount">0đ</strong>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>Giảm giá:</span>
+                        <input type="number" class="form-control form-control-sm w-50" id="discount" value="0" min="0">
+                    </div>
+                    <div class="d-flex justify-content-between mb-3">
+                        <strong>Thành tiền:</strong>
+                        <strong id="finalAmount" class="text-success">0đ</strong>
+                    </div>
+
+                    <!-- Payment Method -->
+                    <div class="mb-3">
+                        <label>Phương thức thanh toán</label>
+                        <select class="form-select" id="paymentMethod">
+                            <option value="cash">Tiền mặt</option>
+                            <option value="card">Thẻ</option>
+                            <option value="transfer">Chuyển khoản</option>
+                            <option value="ewallet">Ví điện tử</option>
+                        </select>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <button class="btn btn-success w-100 mb-2" onclick="processOrder()">
+                        <i class="bi bi-check-circle"></i> Thanh toán
+                    </button>
+                    <button class="btn btn-danger w-100" onclick="clearCart()">
+                        <i class="bi bi-trash"></i> Xóa giỏ hàng
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let cart = [];
+let customer = null;
+
+function selectProduct(productId, productName, price) {
+    // Add product to cart
+    const existingItem = cart.find(item => item.product_id === productId && item.size === 'M');
+    
+    if (existingItem) {
+        existingItem.quantity += 1;
+    } else {
+        cart.push({
+            product_id: productId,
+            product_name: productName,
+            size: 'M',
+            quantity: 1,
+            price: price,
+            customizations: []
+        });
+    }
+    
+    updateCart();
+}
+
+function updateCart() {
+    const cartItemsDiv = document.getElementById('cartItems');
+    
+    if (cart.length === 0) {
+        cartItemsDiv.innerHTML = '<p class="text-muted text-center">Giỏ hàng trống</p>';
+        document.getElementById('totalAmount').textContent = '0đ';
+        document.getElementById('finalAmount').textContent = '0đ';
+        return;
+    }
+    
+    let html = '';
+    let total = 0;
+    
+    cart.forEach((item, index) => {
+        const itemTotal = item.price * item.quantity;
+        total += itemTotal;
+        
+        html += `
+            <div class="cart-item d-flex justify-content-between align-items-center mb-2 p-2 border rounded">
+                <div>
+                    <strong>${item.product_name}</strong>
+                    <br>
+                    <small>${item.size} × ${item.quantity} = ${itemTotal.toLocaleString()}đ</small>
+                </div>
+                <button class="btn btn-sm btn-danger" onclick="removeFromCart(${index})">
+                    <i class="bi bi-trash"></i>
+                </button>
+            </div>
+        `;
+    });
+    
+    cartItemsDiv.innerHTML = html;
+    document.getElementById('totalAmount').textContent = total.toLocaleString() + 'đ';
+    
+    // Calculate final amount with discount
+    const discount = parseFloat(document.getElementById('discount').value) || 0;
+    const finalAmount = total - discount;
+    document.getElementById('finalAmount').textContent = finalAmount.toLocaleString() + 'đ';
+}
+
+function removeFromCart(index) {
+    cart.splice(index, 1);
+    updateCart();
+}
+
+function clearCart() {
+    if (confirm('Xóa toàn bộ giỏ hàng?')) {
+        cart = [];
+        updateCart();
+    }
+}
+
+function searchCustomer() {
+    const phone = document.getElementById('customerPhone').value;
+    
+    fetch(`/orders/search-customer/?phone=${phone}`)
+        .then(response => response.json())
+        .then(data => {
+            const infoDiv = document.getElementById('customerInfo');
+            
+            if (data.found) {
+                customer = data.customer;
+                infoDiv.innerHTML = `
+                    <div class="alert alert-success alert-sm mt-2">
+                        <strong>${data.customer.name}</strong><br>
+                        Hạng: ${data.customer.tier} | Điểm: ${data.customer.points}
+                    </div>
+                `;
+                
+                // Apply discount for VIP customers
+                if (data.customer.discount > 0) {
+                    const total = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+                    const discount = total * data.customer.discount / 100;
+                    document.getElementById('discount').value = discount;
+                    updateCart();
+                }
+            } else {
+                customer = null;
+                infoDiv.innerHTML = '<div class="alert alert-warning alert-sm mt-2">Không tìm thấy khách hàng</div>';
+            }
+        });
+}
+
+function processOrder() {
+    if (cart.length === 0) {
+        alert('Giỏ hàng trống!');
+        return;
+    }
+    
+    const total = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    const discount = parseFloat(document.getElementById('discount').value) || 0;
+    const finalAmount = total - discount;
+    
+    const orderData = {
+        customer_id: customer ? customer.id : null,
+        items: cart,
+        total_amount: total,
+        discount: discount,
+        final_amount: finalAmount,
+        payment_method: document.getElementById('paymentMethod').value
+    };
+    
+    // Get CSRF token
+    const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+    
+    fetch('/orders/create/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrftoken
+        },
+        body: JSON.stringify(orderData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(`Đơn hàng ${data.order_number} đã được tạo thành công!`);
+            cart = [];
+            customer = null;
+            document.getElementById('customerPhone').value = '';
+            document.getElementById('customerInfo').innerHTML = '';
+            document.getElementById('discount').value = 0;
+            updateCart();
+        } else {
+            alert('Lỗi: ' + data.message);
+        }
+    })
+    .catch(error => {
+        alert('Lỗi kết nối: ' + error);
+    });
+}
+
+// Update final amount when discount changes
+document.getElementById('discount').addEventListener('input', updateCart);
+</script>
+{% csrf_token %}
+{% endblock %}
