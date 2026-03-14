@@ -30,17 +30,22 @@ def role_required(*allowed_roles):
             if request.user.is_superuser:
                 return view_func(request, *args, **kwargs)
             
-            # Kiểm tra role của staff
+            # Kiểm tra role của staff - match by username contains
             try:
+                from django.db import models
                 from apps.staff.models import Staff
-                staff = Staff.objects.get(email=request.user.email, is_active=True)
+                staff = Staff.objects.filter(
+                    models.Q(email__icontains=request.user.username) | 
+                    models.Q(phone__icontains=request.user.username),
+                    is_active=True
+                ).first()
                 
-                if staff.role in allowed_roles:
+                if staff and staff.role in allowed_roles:
                     return view_func(request, *args, **kwargs)
                 else:
                     messages.error(request, 'Bạn không có quyền truy cập chức năng này.')
                     return redirect('dashboard')
-            except Staff.DoesNotExist:
+            except:
                 messages.error(request, 'Không tìm thấy thông tin nhân viên.')
                 return redirect('dashboard')
         

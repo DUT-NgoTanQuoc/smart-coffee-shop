@@ -1,0 +1,217 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ order.order_number }} - Smart Coffee Shop{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-receipt"></i> Đơn hàng {{ order.order_number }}</h2>
+    <a href="{% url 'order_list' %}" class="btn btn-secondary">
+        <i class="bi bi-arrow-left"></i> Quay lại
+    </a>
+</div>
+
+<div class="row">
+    <!-- Order Info -->
+    <div class="col-md-6 mb-4">
+        <div class="card shadow h-100">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-info-circle"></i> Thông tin đơn hàng</h5>
+            </div>
+            <div class="card-body">
+                <table class="table table-borderless">
+                    <tr>
+                        <td><strong>Mã đơn:</strong></td>
+                        <td><span class="h5">{{ order.order_number }}</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>Ngày đặt:</strong></td>
+                        <td>{{ order.order_date|date:"d/m/Y H:i" }}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Trạng thái:</strong></td>
+                        <td>
+                            {% if order.status == 'completed' %}
+                            <span class="badge bg-success">Hoàn thành</span>
+                            {% elif order.status == 'pending' %}
+                            <span class="badge bg-warning">Chờ xử lý</span>
+                            {% elif order.status == 'processing' %}
+                            <span class="badge bg-info">Đang làm</span>
+                            {% else %}
+                            <span class="badge bg-danger">Đã hủy</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><strong>Khách hàng:</strong></td>
+                        <td>
+                            {% if order.customer %}
+                            <a href="{% url 'customer_detail' order.customer.id %}">
+                                {{ order.customer.name }}
+                            </a>
+                            <br><small class="text-muted">{{ order.customer.phone }}</small>
+                            {% else %}
+                            <span class="text-muted">Khách vãng lai</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><strong>Nhân viên:</strong></td>
+                        <td>
+                            {% if order.staff %}
+                            {{ order.staff.name }}
+                            {% else %}
+                            <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Payment Info -->
+    <div class="col-md-6 mb-4">
+        <div class="card shadow h-100">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-credit-card"></i> Thông tin thanh toán</h5>
+            </div>
+            <div class="card-body">
+                {% with order.payments.first as payment %}
+                {% if payment %}
+                <table class="table table-borderless">
+                    <tr>
+                        <td><strong>Phương thức:</strong></td>
+                        <td>
+                            {% if payment.payment_method == 'cash' %}
+                            <span class="badge bg-success"><i class="bi bi-cash"></i> Tiền mặt</span>
+                            {% elif payment.payment_method == 'card' %}
+                            <span class="badge bg-primary"><i class="bi bi-credit-card"></i> Thẻ</span>
+                            {% elif payment.payment_method == 'transfer' %}
+                            <span class="badge bg-info"><i class="bi bi-bank"></i> Chuyển khoản</span>
+                            {% else %}
+                            <span class="badge bg-warning"><i class="bi bi-wallet2"></i> Ví điện tử</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><strong>Ngày thanh toán:</strong></td>
+                        <td>{{ payment.payment_date|date:"d/m/Y H:i" }}</td>
+                    </tr>
+                </table>
+                {% endif %}
+                {% endwith %}
+                
+                <hr>
+                
+                <table class="table table-borderless">
+                    <tr>
+                        <td><strong>Tổng tiền:</strong></td>
+                        <td class="text-decoration-line-through text-muted">
+                            {{ order.total_amount|floatformat:0 }}đ
+                        </td>
+                    </tr>
+                    {% if order.discount > 0 %}
+                    <tr>
+                        <td><strong>Giảm giá:</strong></td>
+                        <td class="text-danger">-{{ order.discount|floatformat:0 }}đ</td>
+                    </tr>
+                    {% endif %}
+                    <tr class="table-success">
+                        <td><strong>Thành tiền:</strong></td>
+                        <td><span class="h4 text-success">{{ order.final_amount|floatformat:0 }}đ</span></td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Order Items -->
+<div class="card shadow">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="bi bi-list-ul"></i> Chi tiết đơn hàng</h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-bordered">
+                <thead class="table-light">
+                    <tr>
+                        <th>STT</th>
+                        <th>Sản phẩm</th>
+                        <th>Size</th>
+                        <th>Số lượng</th>
+                        <th>Đơn giá</th>
+                        <th>Tùy chỉnh</th>
+                        <th>Thành tiền</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in order.items.all %}
+                    <tr>
+                        <td>{{ forloop.counter }}</td>
+                        <td>
+                            <strong>{{ item.product.name }}</strong>
+                        </td>
+                        <td>
+                            {% if item.size == 'S' %}
+                            <span class="badge bg-primary">Small</span>
+                            {% elif item.size == 'M' %}
+                            <span class="badge bg-info">Medium</span>
+                            {% else %}
+                            <span class="badge bg-warning">Large</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ item.quantity }}</td>
+                        <td>{{ item.price|floatformat:0 }}đ</td>
+                        <td>
+                            {% if item.customizations %}
+                            <ul class="list-unstyled mb-0 small">
+                                {% for custom in item.customizations %}
+                                <li>{{ custom.name }} (+{{ custom.price }}đ)</li>
+                                {% endfor %}
+                            </ul>
+                            {% else %}
+                            -
+                            {% endif %}
+                        </td>
+                        <td><strong>{{ item.subtotal|floatformat:0 }}đ</strong></td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="text-center py-4">
+                            Không có sản phẩm nào
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot class="table-light">
+                    <tr>
+                        <td colspan="6" class="text-end"><strong>Tổng cộng:</strong></td>
+                        <td><strong>{{ order.total_amount|floatformat:0 }}đ</strong></td>
+                    </tr>
+                    {% if order.discount > 0 %}
+                    <tr>
+                        <td colspan="6" class="text-end text-danger">Giảm giá:</td>
+                        <td class="text-danger">-{{ order.discount|floatformat:0 }}đ</td>
+                    </tr>
+                    {% endif %}
+                    <tr>
+                        <td colspan="6" class="text-end"><strong>Thành tiền:</strong></td>
+                        <td><strong class="text-success">{{ order.final_amount|floatformat:0 }}đ</strong></td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Points Earned -->
+{% if order.customer and order.status == 'completed' %}
+<div class="alert alert-info mt-4">
+    <i class="bi bi-star"></i> 
+    Khách hàng <strong>{{ order.customer.name }}</strong> được cộng 
+    <strong>{{ order.calculate_points }}</strong> điểm tích lũy cho đơn hàng này.
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,151 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ customer.name }} - Smart Coffee Shop{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-person"></i> {{ customer.name }}</h2>
+    <a href="{% url 'customer_list' %}" class="btn btn-secondary">
+        <i class="bi bi-arrow-left"></i> Quay lại
+    </a>
+</div>
+
+<div class="row">
+    <!-- Customer Info -->
+    <div class="col-md-4 mb-4">
+        <div class="card shadow h-100">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-person-badge"></i> Thông tin khách hàng</h5>
+            </div>
+            <div class="card-body text-center">
+                <div class="mb-3">
+                    {% if customer.tier == 'Kim cương' %}
+                    <span class="badge bg-dark fs-6">💎 Kim cương</span>
+                    {% elif customer.tier == 'Vàng' %}
+                    <span class="badge bg-warning fs-6">🌟 Vàng</span>
+                    {% elif customer.tier == 'Bạc' %}
+                    <span class="badge bg-secondary fs-6">⭐ Bạc</span>
+                    {% else %}
+                    <span class="badge bg-danger fs-6">🥉 Đồng</span>
+                    {% endif %}
+                </div>
+                
+                <table class="table table-borderless text-start">
+                    <tr>
+                        <td><strong>ID:</strong></td>
+                        <td>{{ customer.id }}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Tên:</strong></td>
+                        <td>{{ customer.name }}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Điện thoại:</strong></td>
+                        <td>{{ customer.phone }}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Email:</strong></td>
+                        <td>{{ customer.email|default:"-" }}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Điểm tích lũy:</strong></td>
+                        <td><span class="h5 text-primary">{{ customer.points }}</span> điểm</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Giảm giá:</strong></td>
+                        <td><span class="h5 text-success">{{ customer.get_discount_percentage }}%</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>Ngày tham gia:</strong></td>
+                        <td>{{ customer.created_at|date:"d/m/Y" }}</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Orders History -->
+    <div class="col-md-8 mb-4">
+        <div class="card shadow h-100">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-receipt"></i> Lịch sử đơn hàng</h5>
+            </div>
+            <div class="card-body">
+                {% if orders %}
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Mã đơn</th>
+                                <th>Ngày</th>
+                                <th>Tổng tiền</th>
+                                <th>Trạng thái</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for order in orders %}
+                            <tr>
+                                <td>
+                                    <a href="{% url 'order_detail' order.id %}">
+                                        {{ order.order_number }}
+                                    </a>
+                                </td>
+                                <td>{{ order.order_date|date:"d/m/Y H:i" }}</td>
+                                <td>{{ order.final_amount|floatformat:0 }}đ</td>
+                                <td>
+                                    {% if order.status == 'completed' %}
+                                    <span class="badge bg-success">Hoàn thành</span>
+                                    {% elif order.status == 'pending' %}
+                                    <span class="badge bg-warning">Chờ xử lý</span>
+                                    {% elif order.status == 'processing' %}
+                                    <span class="badge bg-info">Đang làm</span>
+                                    {% else %}
+                                    <span class="badge bg-danger">Đã hủy</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-4 text-muted">
+                    <i class="bi bi-inbox" style="font-size: 2rem;"></i>
+                    <p>Chưa có đơn hàng nào</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Favorite Drinks -->
+<div class="card shadow">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="bi bi-heart"></i> Đồ uống yêu thích</h5>
+    </div>
+    <div class="card-body">
+        {% if favorite_drinks %}
+        <div class="row">
+            {% for drink in favorite_drinks %}
+            <div class="col-md-3 mb-3">
+                <div class="card">
+                    <div class="card-body text-center">
+                        <i class="bi bi-cup-hot text-primary" style="font-size: 2rem;"></i>
+                        <h6 class="mt-2">{{ drink.product.name }}</h6>
+                        <span class="badge bg-secondary">{{ drink.get_size_display }}</span>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="text-center py-4 text-muted">
+            <i class="bi bi-heart" style="font-size: 2rem;"></i>
+            <p>Chưa có đồ uống yêu thích</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

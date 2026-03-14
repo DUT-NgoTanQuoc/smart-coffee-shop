@@ -1,0 +1,122 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Sản phẩm - Smart Coffee Shop{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-cup"></i> Quản lý sản phẩm</h2>
+    <a href="{% url 'product_create' %}" class="btn btn-primary">
+        <i class="bi bi-plus-circle"></i> Thêm sản phẩm
+    </a>
+</div>
+
+<!-- Filters -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="GET" class="row g-3">
+            <div class="col-md-4">
+                <label class="form-label">Danh mục</label>
+                <select name="category" class="form-select">
+                    <option value="">Tất cả</option>
+                    {% for cat in categories %}
+                    <option value="{{ cat.id }}" {% if request.GET.category == cat.id|stringformat:"s" %}selected{% endif %}>
+                        {{ cat.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-4 d-flex align-items-end">
+                <button type="submit" class="btn btn-secondary me-2">
+                    <i class="bi bi-filter"></i> Lọc
+                </button>
+                <a href="{% url 'product_list' %}" class="btn btn-outline-secondary">
+                    <i class="bi bi-arrow-counterclockwise"></i> Reset
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Products Table -->
+<div class="card shadow">
+    <div class="card-body p-0">
+        <div class="table-responsive" style="max-height: 65vh; overflow-y: auto;">
+            <table class="table table-hover mb-0">
+                <thead class="table-light" style="position: sticky; top: 0; z-index: 1;">
+                    <tr>
+                        <th>ID</th>
+                        <th>Hình ảnh</th>
+                        <th>Tên sản phẩm</th>
+                        <th>Danh mục</th>
+                        <th>Giá (S/M/L)</th>
+                        <th>Trạng thái</th>
+                        <th>Thao tác</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for product in products %}
+                    <tr>
+                        <td>{{ product.id }}</td>
+                        <td>
+                            {% if product.image %}
+                            <img src="{% if product.image.url %}{{ product.image.url }}{% else %}/media/{{ product.image }}{% endif %}" alt="{{ product.name }}" 
+                                 style="width: 50px; height: 50px; object-fit: cover;" class="rounded">
+                            {% else %}
+                            <div class="bg-secondary text-white rounded d-flex align-items-center justify-content-center" 
+                                 style="width: 50px; height: 50px;">
+                                <i class="bi bi-cup-hot"></i>
+                            </div>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <strong>{{ product.name }}</strong>
+                            {% if product.description %}
+                            <br><small class="text-muted">{{ product.description|truncatechars:50 }}</small>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if product.category %}
+                            <span class="badge bg-info">{{ product.category.name }}</span>
+                            {% else %}
+                            <span class="text-muted">Chưa phân loại</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if product.price_small %}{{ product.price_small|floatformat:0 }}đ{% else %}0đ{% endif %} /
+                            {% if product.price_medium %}{{ product.price_medium|floatformat:0 }}đ{% else %}0đ{% endif %} /
+                            {% if product.price_large %}{{ product.price_large|floatformat:0 }}đ{% else %}0đ{% endif %}
+                        </td>
+                        <td>
+                            {% if product.is_available %}
+                            <span class="badge bg-success">Còn hàng</span>
+                            {% else %}
+                            <span class="badge bg-danger">Hết hàng</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <a href="{% url 'product_detail' product.id %}" class="btn btn-sm btn-info text-white">
+                                <i class="bi bi-eye"></i>
+                            </a>
+                            <a href="{% url 'product_update' product.id %}" class="btn btn-sm btn-warning">
+                                <i class="bi bi-pencil"></i>
+                            </a>
+                            <a href="{% url 'product_delete' product.id %}" class="btn btn-sm btn-danger">
+                                <i class="bi bi-trash"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="text-center py-4">
+                            <i class="bi bi-inbox text-muted" style="font-size: 2rem;"></i>
+                            <p class="text-muted mt-2">Chưa có sản phẩm nào</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

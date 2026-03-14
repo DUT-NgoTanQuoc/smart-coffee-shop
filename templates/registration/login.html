@@ -1,0 +1,38 @@
+{% extends 'base.html' %}
+
+{% block title %}Đăng nhập - Smart Coffee Shop{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center mt-5">
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0 text-center">Smart Coffee Shop</h4>
+                    <p class="mb-0 text-center">Đăng nhập hệ thống</p>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label for="id_username" class="form-label">Tên đăng nhập</label>
+                            <input type="text" name="username" class="form-control" id="id_username" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="id_password" class="form-label">Mật khẩu</label>
+                            <input type="password" name="password" class="form-control" id="id_password" required>
+                        </div>
+                        {% if form.errors %}
+                        <div class="alert alert-danger">
+                            Tên đăng nhập hoặc mật khẩu không đúng.
+                        </div>
+                        {% endif %}
+                        <button type="submit" class="btn btn-primary w-100">Đăng nhập</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

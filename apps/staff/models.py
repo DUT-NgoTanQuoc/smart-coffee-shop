@@ -9,8 +9,8 @@ class Staff(models.Model):
     ROLE_CHOICES = [
         ('manager', 'Quản lý'),
         ('cashier', 'Thu ngân'),
-        ('barista', 'Pha chế'),
-        ('server', 'Phục vụ'),
+        ('barista', 'Barista'),
+        ('parttime', 'Part-time'),
     ]
 
     name = models.CharField(max_length=100, verbose_name='Tên nhân viên')

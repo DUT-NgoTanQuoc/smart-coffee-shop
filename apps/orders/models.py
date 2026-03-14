@@ -10,9 +10,7 @@ class Order(models.Model):
     """
     STATUS_CHOICES = [
         ('pending', 'Chờ xử lý'),
-        ('processing', 'Đang làm'),
         ('completed', 'Hoàn thành'),
-        ('cancelled', 'Đã hủy'),
     ]
 
     order_number = models.CharField(
@@ -59,6 +57,8 @@ class Order(models.Model):
         default='pending',
         verbose_name='Trạng thái'
     )
+    points_earned = models.IntegerField(default=0, verbose_name='Điểm tích lũy')
+    points_used = models.IntegerField(default=0, verbose_name='Điểm đã dùng')
     order_date = models.DateTimeField(default=timezone.now, verbose_name='Ngày đặt')
 
     class Meta:
@@ -106,6 +106,7 @@ class OrderItem(models.Model):
         ('S', 'Small'),
         ('M', 'Medium'),
         ('L', 'Large'),
+        ('N/A', 'Không size'),
     ]
 
     order = models.ForeignKey(
@@ -161,8 +162,7 @@ class Payment(models.Model):
     PAYMENT_METHOD_CHOICES = [
         ('cash', 'Tiền mặt'),
         ('card', 'Thẻ'),
-        ('transfer', 'Chuyển khoản'),
-        ('ewallet', 'Ví điện tử'),
+        ('momo', 'MoMo'),
     ]
 
     order = models.ForeignKey(

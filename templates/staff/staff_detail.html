@@ -1,0 +1,126 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ staff.name }} - Smart Coffee Shop{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-person-badge"></i> {{ staff.name }}</h2>
+    <a href="{% url 'staff_list' %}" class="btn btn-secondary">
+        <i class="bi bi-arrow-left"></i> Quay lại
+    </a>
+</div>
+
+<div class="row">
+    <!-- Staff Info -->
+    <div class="col-md-4 mb-4">
+        <div class="card shadow h-100">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-person"></i> Thông tin nhân viên</h5>
+            </div>
+            <div class="card-body text-center">
+                <div class="mb-3">
+                    <i class="bi bi-person-circle text-primary" style="font-size: 4rem;"></i>
+                </div>
+                
+                <table class="table table-borderless text-start">
+                    <tr>
+                        <td><strong>ID:</strong></td>
+                        <td>{{ staff.id }}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Tên:</strong></td>
+                        <td>{{ staff.name }}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Điện thoại:</strong></td>
+                        <td>{{ staff.phone }}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Email:</strong></td>
+                        <td>{{ staff.email|default:"-" }}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Vai trò:</strong></td>
+                        <td>
+                            {% if staff.role == 'manager' %}
+                            <span class="badge bg-danger">Quản lý</span>
+                            {% elif staff.role == 'cashier' %}
+                            <span class="badge bg-primary">Thu ngân</span>
+                            {% elif staff.role == 'barista' %}
+                            <span class="badge bg-warning text-dark">Pha chế</span>
+                            {% else %}
+                            <span class="badge bg-info">Phục vụ</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><strong>Lương:</strong></td>
+                        <td>{{ staff.salary|floatformat:0|default:"-" }}đ/tháng</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Ngày vào làm:</strong></td>
+                        <td>{{ staff.hire_date|date:"d/m/Y" }}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Trạng thái:</strong></td>
+                        <td>
+                            {% if staff.is_active %}
+                            <span class="badge bg-success">Đang làm việc</span>
+                            {% else %}
+                            <span class="badge bg-secondary">Đã nghỉ</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Work Logs -->
+    <div class="col-md-8 mb-4">
+        <div class="card shadow h-100">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-calendar-check"></i> Lịch sử chấm công (30 ngày gần nhất)</h5>
+            </div>
+            <div class="card-body">
+                {% if work_logs %}
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Ngày</th>
+                                <th>Giờ vào</th>
+                                <th>Giờ ra</th>
+                                <th>Số giờ làm</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for log in work_logs %}
+                            <tr>
+                                <td>{{ log.work_date|date:"d/m/Y" }}</td>
+                                <td>{{ log.check_in|time:"H:i"|default:"-" }}</td>
+                                <td>{{ log.check_out|time:"H:i"|default:"-" }}</td>
+                                <td>
+                                    {% if log.hours_worked %}
+                                    <span class="badge bg-primary">{{ log.hours_worked }}h</span>
+                                    {% else %}
+                                    <span class="text-muted">Chưa chấm</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-4 text-muted">
+                    <i class="bi bi-inbox" style="font-size: 2rem;"></i>
+                    <p>Chưa có lịch sử chấm công</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -57,7 +57,7 @@ class Product(models.Model):
         verbose_name='Giá size L'
     )
     image = models.ImageField(
-        upload_to='products/', 
+        upload_to='products/',
         blank=True, 
         null=True,
         verbose_name='Hình ảnh'
@@ -76,7 +76,10 @@ class Product(models.Model):
 
     def get_price(self, size):
         """Lấy giá theo size / Get price by size"""
-        if size == 'S':
+        if size == 'N/A':
+            # For products without sizes, return the medium price (or any available price)
+            return self.price_medium or self.price_small or self.price_large
+        elif size == 'S':
             return self.price_small
         elif size == 'M':
             return self.price_medium

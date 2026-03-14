@@ -1,0 +1,92 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{% if ingredient %}Sửa nguyên liệu{% else %}Thêm nguyên liệu{% endif %} - Smart Coffee Shop{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>
+        <i class="bi bi-box-seam"></i> 
+        {% if ingredient %}Sửa nguyên liệu{% else %}Thêm nguyên liệu mới{% endif %}
+    </h2>
+    <a href="{% url 'ingredient_list' %}" class="btn btn-secondary">
+        <i class="bi bi-arrow-left"></i> Quay lại
+    </a>
+</div>
+
+<div class="card shadow">
+    <div class="card-body">
+        <form method="POST">
+            {% csrf_token %}
+            
+            <div class="row">
+                <div class="col-md-6">
+                    <h5 class="mb-3"><i class="bi bi-info-circle"></i> Thông tin cơ bản</h5>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Tên nguyên liệu <span class="text-danger">*</span></label>
+                        <input type="text" name="name" class="form-control" 
+                               value="{{ ingredient.name|default:'' }}" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Đơn vị <span class="text-danger">*</span></label>
+                        <input type="text" name="unit" class="form-control" 
+                               value="{{ ingredient.unit|default:'' }}" 
+                               placeholder="g, ml, cái,..." required>
+                        <small class="text-muted">Ví dụ: g, ml, cái, kg, lít</small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Nhà cung cấp</label>
+                        <input type="text" name="supplier" class="form-control" 
+                               value="{{ ingredient.supplier|default:'' }}">
+                    </div>
+                </div>
+                
+                <div class="col-md-6">
+                    <h5 class="mb-3"><i class="bi bi-archive"></i> Thông tin kho</h5>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Số lượng hiện tại</label>
+                        <div class="input-group">
+                            <input type="number" name="quantity" class="form-control" 
+                                   value="{{ ingredient.quantity|default:'0' }}" min="0" step="0.01">
+                            <span class="input-group-text">{{ ingredient.unit|default:'đơn vị' }}</span>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Số lượng tối thiểu (cảnh báo)</label>
+                        <div class="input-group">
+                            <input type="number" name="min_quantity" class="form-control" 
+                                   value="{{ ingredient.min_quantity|default:'0' }}" min="0" step="0.01">
+                            <span class="input-group-text">{{ ingredient.unit|default:'đơn vị' }}</span>
+                        </div>
+                        <small class="text-muted">Khi tồn kho <= số này sẽ hiển thị cảnh báo</small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Giá mỗi đơn vị</label>
+                        <div class="input-group">
+                            <input type="number" name="price_per_unit" class="form-control" 
+                                   value="{{ ingredient.price_per_unit|default:'' }}" min="0" step="100">
+                            <span class="input-group-text">đ</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <hr>
+            
+            <div class="d-flex justify-content-end gap-2">
+                <a href="{% url 'ingredient_list' %}" class="btn btn-secondary">Hủy</a>
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-check-circle"></i> 
+                    {% if ingredient %}Cập nhật{% else %}Tạo nguyên liệu{% endif %}
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

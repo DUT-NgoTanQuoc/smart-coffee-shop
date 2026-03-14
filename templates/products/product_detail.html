@@ -1,0 +1,171 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ product.name }} - Smart Coffee Shop{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-cup"></i> {{ product.name }}</h2>
+    <div>
+        <a href="{% url 'product_update' product.id %}" class="btn btn-warning">
+            <i class="bi bi-pencil"></i> Sửa
+        </a>
+        <a href="{% url 'product_list' %}" class="btn btn-secondary">
+            <i class="bi bi-arrow-left"></i> Quay lại
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Product Info -->
+    <div class="col-md-6 mb-4">
+        <div class="card shadow h-100">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-info-circle"></i> Thông tin sản phẩm</h5>
+            </div>
+            <div class="card-body">
+                <div class="text-center mb-4">
+                    {% if product.image %}
+                    <img src="{% if product.image.url %}{{ product.image.url }}{% else %}/media/{{ product.image }}{% endif %}" alt="{{ product.name }}" 
+                         class="img-fluid rounded" style="max-height: 300px;">
+                    {% else %}
+                    <div class="bg-secondary text-white rounded d-flex align-items-center justify-content-center" 
+                         style="width: 200px; height: 200px; margin: 0 auto;">
+                        <i class="bi bi-cup-hot" style="font-size: 4rem;"></i>
+                    </div>
+                    {% endif %}
+                </div>
+                
+                <table class="table table-borderless">
+                    <tr>
+                        <td><strong>ID:</strong></td>
+                        <td>{{ product.id }}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Tên sản phẩm:</strong></td>
+                        <td>{{ product.name }}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Danh mục:</strong></td>
+                        <td>
+                            {% if product.category %}
+                            <span class="badge bg-info">{{ product.category.name }}</span>
+                            {% else %}
+                            <span class="text-muted">Chưa phân loại</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><strong>Mô tả:</strong></td>
+                        <td>{{ product.description|default:"Không có mô tả" }}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Trạng thái:</strong></td>
+                        <td>
+                            {% if product.is_available %}
+                            <span class="badge bg-success">Còn hàng</span>
+                            {% else %}
+                            <span class="badge bg-danger">Hết hàng</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><strong>Ngày tạo:</strong></td>
+                        <td>{{ product.created_at|date:"d/m/Y H:i" }}</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pricing -->
+    <div class="col-md-6 mb-4">
+        <div class="card shadow h-100">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-tag"></i> Bảng giá theo size</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-bordered text-center">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Size</th>
+                                <th>Giá</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><span class="badge bg-primary">Small (S)</span></td>
+                                <td class="h5 text-success">{{ product.price_small|floatformat:0 }}đ</td>
+                            </tr>
+                            <tr>
+                                <td><span class="badge bg-info">Medium (M)</span></td>
+                                <td class="h5 text-success">{{ product.price_medium|floatformat:0 }}đ</td>
+                            </tr>
+                            <tr>
+                                <td><span class="badge bg-warning">Large (L)</span></td>
+                                <td class="h5 text-success">{{ product.price_large|floatformat:0 }}đ</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recipes -->
+<div class="card shadow mb-4">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="bi bi-book"></i> Công thức pha chế</h5>
+    </div>
+    <div class="card-body">
+        {% if recipes %}
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead class="table-light">
+                    <tr>
+                        <th>Nguyên liệu</th>
+                        <th class="text-center">Size S</th>
+                        <th class="text-center">Size M</th>
+                        <th class="text-center">Size L</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for recipe in recipes %}
+                    <tr>
+                        <td>
+                            <i class="bi bi-box-seam"></i> {{ recipe.ingredient.name }}
+                            <br><small class="text-muted">{{ recipe.ingredient.unit }}</small>
+                        </td>
+                        <td class="text-center">{{ recipe.quantity_small }}</td>
+                        <td class="text-center">{{ recipe.quantity_medium }}</td>
+                        <td class="text-center">{{ recipe.quantity_large }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-4 text-muted">
+            <i class="bi bi-inbox" style="font-size: 2rem;"></i>
+            <p>Chưa có công thức pha chế</p>
+            <p><small>Vui lòng thêm công thức qua Admin</small></p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Danger Zone -->
+<div class="card border-danger shadow">
+    <div class="card-header bg-danger text-white">
+        <h5 class="mb-0"><i class="bi bi-exclamation-triangle"></i> Xóa sản phẩm</h5>
+    </div>
+    <div class="card-body">
+        <p class="text-danger">Cảnh báo: Hành động này không thể hoàn tác. Tất cả dữ liệu liên quan đến sản phẩm này sẽ bị xóa.</p>
+        <a href="{% url 'product_delete' product.id %}" class="btn btn-danger">
+            <i class="bi bi-trash"></i> Xóa sản phẩm
+        </a>
+    </div>
+</div>
+{% endblock %}

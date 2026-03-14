@@ -60,7 +60,9 @@ def product_create(request):
             product.price_large = request.POST.get('price_large')
             
             if 'image' in request.FILES:
-                product.image = request.FILES['image']
+                image_file = request.FILES['image']
+                product.image.save(image_file.name, image_file, save=False)
+                product.save()
             
             product.save()
             
@@ -99,7 +101,9 @@ def product_update(request, product_id):
             product.price_large = request.POST.get('price_large')
             
             if 'image' in request.FILES:
-                product.image = request.FILES['image']
+                image_file = request.FILES['image']
+                product.image.save(image_file.name, image_file, save=False)
+                product.save()
             
             product.save()
             

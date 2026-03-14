@@ -1,0 +1,106 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Nguyên liệu - Smart Coffee Shop{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-box-seam"></i> Quản lý nguyên liệu</h2>
+    <a href="{% url 'ingredient_create' %}" class="btn btn-primary">
+        <i class="bi bi-plus-circle"></i> Thêm nguyên liệu
+    </a>
+</div>
+
+<!-- Filters -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="GET" class="row g-3">
+            <div class="col-md-4">
+                <div class="form-check">
+                    <input type="checkbox" name="low_stock" class="form-check-input" id="lowStock"
+                           {% if request.GET.low_stock %}checked{% endif %}>
+                    <label class="form-check-label" for="lowStock">
+                        Chỉ hiển thị nguyên liệu sắp hết
+                    </label>
+                </div>
+            </div>
+            <div class="col-md-4 d-flex align-items-end">
+                <button type="submit" class="btn btn-secondary me-2">
+                    <i class="bi bi-filter"></i> Lọc
+                </button>
+                <a href="{% url 'ingredient_list' %}" class="btn btn-outline-secondary">
+                    <i class="bi bi-arrow-counterclockwise"></i> Reset
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Ingredients Table -->
+<div class="card shadow">
+    <div class="card-body p-0">
+        <div class="table-responsive" style="max-height: 65vh; overflow-y: auto;">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>ID</th>
+                        <th>Tên nguyên liệu</th>
+                        <th>Tồn kho</th>
+                        <th>Tối thiểu</th>
+                        <th>Giá/Đơn vị</th>
+                        <th>Nhà cung cấp</th>
+                        <th>Trạng thái</th>
+                        <th>Thao tác</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for ingredient in ingredients %}
+                    <tr class="{% if ingredient.is_low_stock %}table-warning{% endif %}">
+                        <td>{{ ingredient.id }}</td>
+                        <td><strong>{{ ingredient.name }}</strong></td>
+                        <td>
+                            <span class="{% if ingredient.is_low_stock %}text-danger{% endif %}">
+                                {{ ingredient.quantity|floatformat:0 }} {{ ingredient.unit }}
+                            </span>
+                        </td>
+                        <td>{{ ingredient.min_quantity|floatformat:0 }} {{ ingredient.unit }}</td>
+                        <td>{{ ingredient.price_per_unit|floatformat:0 }}đ/{{ ingredient.unit }}</td>
+                        <td>{{ ingredient.supplier|default:"-" }}</td>
+                        <td>
+                            {% if ingredient.is_low_stock %}
+                            <span class="badge bg-danger">Sắp hết</span>
+                            {% else %}
+                            <span class="badge bg-success">Còn hàng</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <a href="{% url 'ingredient_update' ingredient.id %}" class="btn btn-sm btn-warning">
+                                <i class="bi bi-pencil"></i>
+                            </a>
+                            <a href="{% url 'ingredient_restock' ingredient.id %}" class="btn btn-sm btn-success">
+                                <i class="bi bi-plus-circle"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="8" class="text-center py-4">
+                            <i class="bi bi-inbox text-muted" style="font-size: 2rem;"></i>
+                            <p class="text-muted mt-2">Chưa có nguyên liệu nào</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Legend -->
+<div class="mt-3">
+    <small class="text-muted">
+        <i class="bi bi-info-circle"></i> 
+        Hàng màu vàng = Nguyên liệu sắp hết (dưới mức tối thiểu)
+    </small>
+</div>
+{% endblock %}
