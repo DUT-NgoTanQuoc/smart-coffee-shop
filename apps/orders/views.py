@@ -33,12 +33,22 @@ def create_order(request):
                 if customer_id:
                     order.customer = Customer.objects.get(id=customer_id)
                 
-                # Gán nhân viên
-                # Giả sử user đã được liên kết với staff
+                # Gán nhân viên (dựa trên email hoặc username/phone); bỏ qua nếu không khớp
                 try:
-                    staff = Staff.objects.get(email=request.user.email)
-                    order.staff = staff
-                except Staff.DoesNotExist:
+                    from django.db import models
+
+                    user_email = getattr(request.user, 'email', None)
+                    user_key = request.user.username
+
+                    staff = Staff.objects.filter(
+                        models.Q(email__iexact=user_email) |
+                        models.Q(email__iexact=user_key) |
+                        models.Q(phone__iexact=user_key)
+                    ).first()
+
+                    if staff:
+                        order.staff = staff
+                except Exception:
                     pass
                 
                 # Tính tổng tiền

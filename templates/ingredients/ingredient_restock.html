@@ -59,12 +59,23 @@
             <div class="card-body">
                 <form method="POST">
                     {% csrf_token %}
+                    {% if form.errors %}
+                    <div class="alert alert-danger">
+                        {% for field in form %}
+                            {% for error in field.errors %}
+                                <div>{{ error }}</div>
+                            {% endfor %}
+                        {% endfor %}
+                        {% for error in form.non_field_errors %}
+                            <div>{{ error }}</div>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
                     
                     <div class="mb-3">
                         <label class="form-label">Số lượng nhập thêm</label>
                         <div class="input-group">
-                            <input type="number" name="quantity" class="form-control" 
-                                   min="0.01" step="0.01" required>
+                            {{ form.quantity }}
                             <span class="input-group-text">{{ ingredient.unit }}</span>
                         </div>
                     </div>

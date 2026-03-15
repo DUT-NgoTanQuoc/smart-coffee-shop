@@ -1,8 +1,9 @@
+from decimal import Decimal
+
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from .models import Product, Category, Recipe, Customization
-from apps.core.decorators import manager_required
 
 
 @login_required
@@ -40,7 +41,6 @@ def product_detail(request, product_id):
 
 
 @login_required
-@manager_required
 def product_create(request):
     """Tạo sản phẩm mới"""
     if request.method == 'POST':
@@ -55,9 +55,12 @@ def product_create(request):
             if category_id:
                 product.category_id = category_id
             
-            product.price_small = request.POST.get('price_small')
-            product.price_medium = request.POST.get('price_medium')
-            product.price_large = request.POST.get('price_large')
+            product.price_small = _to_decimal_or_none(request.POST.get('price_small'))
+            product.price_medium = _to_decimal_or_none(request.POST.get('price_medium'))
+            product.price_large = _to_decimal_or_none(request.POST.get('price_large'))
+
+            # Cập nhật trạng thái còn hàng
+            product.is_available = bool(request.POST.get('is_available'))
             
             if 'image' in request.FILES:
                 image_file = request.FILES['image']
@@ -82,7 +85,6 @@ def product_create(request):
 
 
 @login_required
-@manager_required
 def product_update(request, product_id):
     """Cập nhật sản phẩm"""
     product = get_object_or_404(Product, id=product_id)
@@ -96,9 +98,12 @@ def product_update(request, product_id):
             if category_id:
                 product.category_id = category_id
             
-            product.price_small = request.POST.get('price_small')
-            product.price_medium = request.POST.get('price_medium')
-            product.price_large = request.POST.get('price_large')
+            product.price_small = _to_decimal_or_none(request.POST.get('price_small'))
+            product.price_medium = _to_decimal_or_none(request.POST.get('price_medium'))
+            product.price_large = _to_decimal_or_none(request.POST.get('price_large'))
+
+            # Cập nhật trạng thái còn hàng
+            product.is_available = bool(request.POST.get('is_available'))
             
             if 'image' in request.FILES:
                 image_file = request.FILES['image']
@@ -124,7 +129,6 @@ def product_update(request, product_id):
 
 
 @login_required
-@manager_required
 def product_delete(request, product_id):
     """Xóa sản phẩm"""
     product = get_object_or_404(Product, id=product_id)
@@ -139,3 +143,13 @@ def product_delete(request, product_id):
     }
     
     return render(request, 'products/product_confirm_delete.html', context)
+
+
+def _to_decimal_or_none(value):
+    """Chuyển chuỗi nhập giá thành Decimal hoặc None nếu trống"""
+    if value in (None, ''):
+        return None
+    try:
+        return Decimal(value)
+    except Exception:
+        return None

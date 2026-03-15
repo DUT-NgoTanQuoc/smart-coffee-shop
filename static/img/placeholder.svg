@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 200 200" role="img" aria-labelledby="title desc">
+  <title>Placeholder</title>
+  <desc>Image placeholder</desc>
+  <rect width="200" height="200" fill="#e5e7eb"/>
+  <path d="M20 140 L70 90 L110 130 L150 80 L180 120 L180 180 L20 180 Z" fill="#cbd5e1"/>
+  <circle cx="70" cy="70" r="20" fill="#d1d5db"/>
+  <text x="100" y="190" text-anchor="middle" font-size="14" fill="#6b7280" font-family="Arial, sans-serif">No image</text>
+</svg>

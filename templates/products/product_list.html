@@ -59,15 +59,19 @@
                     <tr>
                         <td>{{ product.id }}</td>
                         <td>
-                            {% if product.image %}
-                            <img src="{% if product.image.url %}{{ product.image.url }}{% else %}/media/{{ product.image }}{% endif %}" alt="{{ product.name }}" 
-                                 style="width: 50px; height: 50px; object-fit: cover;" class="rounded">
-                            {% else %}
-                            <div class="bg-secondary text-white rounded d-flex align-items-center justify-content-center" 
-                                 style="width: 50px; height: 50px;">
-                                <i class="bi bi-cup-hot"></i>
-                            </div>
-                            {% endif %}
+                       {% if product.image %}
+                       <img src="{% if product.image.url %}{{ product.image.url }}{% else %}/media/{{ product.image }}{% endif %}"
+                           alt="{{ product.name }}"
+                           style="width: 50px; height: 50px; object-fit: cover;"
+                           class="rounded"
+                           loading="lazy"
+                           onerror="this.onerror=null; this.src='{% static 'img/placeholder.svg' %}';">
+                       {% else %}
+                       <div class="bg-secondary text-white rounded d-flex align-items-center justify-content-center" 
+                           style="width: 50px; height: 50px;">
+                          <i class="bi bi-cup-hot"></i>
+                       </div>
+                       {% endif %}
                         </td>
                         <td>
                             <strong>{{ product.name }}</strong>

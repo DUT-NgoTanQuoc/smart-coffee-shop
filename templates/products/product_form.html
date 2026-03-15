@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% load static %}
+{% load static l10n %}
 
 {% block title %}{% if product %}Sửa sản phẩm{% else %}Thêm sản phẩm{% endif %} - Smart Coffee Shop{% endblock %}
 
@@ -16,7 +16,7 @@
 
 <div class="card shadow">
     <div class="card-body">
-        <form method="POST" enctype="multipart/form-data">
+        <form method="POST" enctype="multipart/form-data" id="productForm">
             {% csrf_token %}
             
             <div class="row">
@@ -54,7 +54,9 @@
                         {% if product.image %}
                         <div class="mt-2">
                             <img src="{% if product.image.url %}{{ product.image.url }}{% else %}/media/{{ product.image }}{% endif %}" alt="Current image" 
-                                 style="width: 100px; height: 100px; object-fit: cover;" class="rounded">
+                                 style="width: 100px; height: 100px; object-fit: cover;" class="rounded"
+                                 loading="lazy"
+                                 onerror="this.onerror=null; this.src='{% static 'img/placeholder.svg' %}';">
                             <small class="text-muted d-block">Ảnh hiện tại</small>
                         </div>
                         {% endif %}
@@ -76,8 +78,10 @@
                     <div class="mb-3">
                         <label class="form-label">Giá size Small (S)</label>
                         <div class="input-group">
+                            {% with product.price_small|default_if_none:product.price_medium|default_if_none:product.price_large as price_s %}
                             <input type="number" name="price_small" class="form-control" 
-                                   value="{{ product.price_small|default:'' }}" min="0" step="100">
+                                   value="{{ price_s|unlocalize|default:'' }}" min="0" step="100">
+                            {% endwith %}
                             <span class="input-group-text">đ</span>
                         </div>
                     </div>
@@ -85,8 +89,10 @@
                     <div class="mb-3">
                         <label class="form-label">Giá size Medium (M)</label>
                         <div class="input-group">
+                            {% with product.price_medium|default_if_none:product.price_small|default_if_none:product.price_large as price_m %}
                             <input type="number" name="price_medium" class="form-control" 
-                                   value="{{ product.price_medium|default:'' }}" min="0" step="100">
+                                   value="{{ price_m|unlocalize|default:'' }}" min="0" step="100">
+                            {% endwith %}
                             <span class="input-group-text">đ</span>
                         </div>
                     </div>
@@ -94,8 +100,10 @@
                     <div class="mb-3">
                         <label class="form-label">Giá size Large (L)</label>
                         <div class="input-group">
+                            {% with product.price_large|default_if_none:product.price_medium|default_if_none:product.price_small as price_l %}
                             <input type="number" name="price_large" class="form-control" 
-                                   value="{{ product.price_large|default:'' }}" min="0" step="100">
+                                   value="{{ price_l|unlocalize|default:'' }}" min="0" step="100">
+                            {% endwith %}
                             <span class="input-group-text">đ</span>
                         </div>
                     </div>
@@ -112,7 +120,7 @@
             
             <div class="d-flex justify-content-end gap-2">
                 <a href="{% url 'product_list' %}" class="btn btn-secondary">Hủy</a>
-                <button type="submit" class="btn btn-primary">
+                <button type="submit" class="btn btn-primary" id="submitBtn">
                     <i class="bi bi-check-circle"></i> 
                     {% if product %}Cập nhật{% else %}Tạo sản phẩm{% endif %}
                 </button>
@@ -120,4 +128,55 @@
         </form>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Disable nút Cập nhật khi chưa thay đổi (chỉ áp dụng khi đang sửa)
+(function() {
+    const form = document.getElementById('productForm');
+    const submitBtn = document.getElementById('submitBtn');
+    const isEditing = {{ product|yesno:'true,false' }};
+    if (!form || !submitBtn || !isEditing) return;
+
+    const fields = Array.from(form.querySelectorAll('input, textarea, select'))
+        .filter(el => el.name && el.type !== 'hidden');
+
+    const original = new Map();
+    fields.forEach(el => {
+        if (el.type === 'checkbox' || el.type === 'radio') {
+            original.set(el.name, el.checked);
+        } else {
+            original.set(el.name, el.value);
+        }
+    });
+
+    function checkChanged() {
+        let changed = false;
+        for (const el of fields) {
+            let current;
+            if (el.type === 'checkbox' || el.type === 'radio') {
+                current = el.checked;
+            } else if (el.type === 'file') {
+                // Có chọn file mới => xem như thay đổi
+                current = el.files.length > 0;
+            } else {
+                current = el.value;
+            }
+            const orig = original.get(el.name);
+            if (current !== orig) {
+                changed = true;
+                break;
+            }
+        }
+        submitBtn.disabled = !changed;
+    }
+
+    checkChanged();
+    fields.forEach(el => {
+        const evt = (el.type === 'checkbox' || el.type === 'radio' || el.type === 'file') ? 'change' : 'input';
+        el.addEventListener(evt, checkChanged);
+    });
+})();
+</script>
 {% endblock %}

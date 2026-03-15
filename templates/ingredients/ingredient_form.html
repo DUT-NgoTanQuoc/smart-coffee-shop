@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% load static %}
+{% load static l10n %}
 
 {% block title %}{% if ingredient %}Sửa nguyên liệu{% else %}Thêm nguyên liệu{% endif %} - Smart Coffee Shop{% endblock %}
 
@@ -18,6 +18,22 @@
     <div class="card-body">
         <form method="POST">
             {% csrf_token %}
+
+            {% if form.errors %}
+            <div class="alert alert-danger">
+                <strong>Vui lòng kiểm tra lại thông tin:</strong>
+                <ul class="mb-0">
+                    {% for field in form %}
+                        {% for error in field.errors %}
+                        <li>{{ field.label }}: {{ error }}</li>
+                        {% endfor %}
+                    {% endfor %}
+                    {% for error in form.non_field_errors %}
+                        <li>{{ error }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
             
             <div class="row">
                 <div class="col-md-6">
@@ -26,13 +42,13 @@
                     <div class="mb-3">
                         <label class="form-label">Tên nguyên liệu <span class="text-danger">*</span></label>
                         <input type="text" name="name" class="form-control" 
-                               value="{{ ingredient.name|default:'' }}" required>
+                               value="{{ form.name.value|default:ingredient.name|default:'' }}" required>
                     </div>
                     
                     <div class="mb-3">
                         <label class="form-label">Đơn vị <span class="text-danger">*</span></label>
                         <input type="text" name="unit" class="form-control" 
-                               value="{{ ingredient.unit|default:'' }}" 
+                               value="{{ form.unit.value|default:ingredient.unit|default:'' }}" 
                                placeholder="g, ml, cái,..." required>
                         <small class="text-muted">Ví dụ: g, ml, cái, kg, lít</small>
                     </div>
@@ -40,7 +56,7 @@
                     <div class="mb-3">
                         <label class="form-label">Nhà cung cấp</label>
                         <input type="text" name="supplier" class="form-control" 
-                               value="{{ ingredient.supplier|default:'' }}">
+                               value="{{ form.supplier.value|default:ingredient.supplier|default:'' }}">
                     </div>
                 </div>
                 
@@ -50,18 +66,18 @@
                     <div class="mb-3">
                         <label class="form-label">Số lượng hiện tại</label>
                         <div class="input-group">
-                            <input type="number" name="quantity" class="form-control" 
-                                   value="{{ ingredient.quantity|default:'0' }}" min="0" step="0.01">
-                            <span class="input-group-text">{{ ingredient.unit|default:'đơn vị' }}</span>
+                <input type="number" name="quantity" class="form-control" 
+                    value="{{ form.quantity.value|default_if_none:ingredient.quantity|default:'0'|unlocalize }}" min="0" step="0.01">
+                <span class="input-group-text">{{ form.unit.value|default:ingredient.unit|default:'đơn vị' }}</span>
                         </div>
                     </div>
                     
                     <div class="mb-3">
                         <label class="form-label">Số lượng tối thiểu (cảnh báo)</label>
                         <div class="input-group">
-                            <input type="number" name="min_quantity" class="form-control" 
-                                   value="{{ ingredient.min_quantity|default:'0' }}" min="0" step="0.01">
-                            <span class="input-group-text">{{ ingredient.unit|default:'đơn vị' }}</span>
+                <input type="number" name="min_quantity" class="form-control" 
+                    value="{{ form.min_quantity.value|default_if_none:ingredient.min_quantity|default:'0'|unlocalize }}" min="0" step="0.01">
+                <span class="input-group-text">{{ form.unit.value|default:ingredient.unit|default:'đơn vị' }}</span>
                         </div>
                         <small class="text-muted">Khi tồn kho <= số này sẽ hiển thị cảnh báo</small>
                     </div>
@@ -69,8 +85,8 @@
                     <div class="mb-3">
                         <label class="form-label">Giá mỗi đơn vị</label>
                         <div class="input-group">
-                            <input type="number" name="price_per_unit" class="form-control" 
-                                   value="{{ ingredient.price_per_unit|default:'' }}" min="0" step="100">
+                <input type="number" name="price_per_unit" class="form-control" 
+                    value="{{ form.price_per_unit.value|default_if_none:ingredient.price_per_unit|default:''|unlocalize }}" min="0" step="100">
                             <span class="input-group-text">đ</span>
                         </div>
                     </div>

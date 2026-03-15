@@ -2,11 +2,9 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from .models import Staff, WorkLog
-from apps.core.decorators import manager_required
 
 
 @login_required
-@manager_required
 def staff_list(request):
     """Danh sách nhân viên"""
     staff_members = Staff.objects.all().order_by('name')
@@ -29,7 +27,6 @@ def staff_list(request):
 
 
 @login_required
-@manager_required
 def staff_detail(request, staff_id):
     """Chi tiết nhân viên"""
     staff = get_object_or_404(Staff, id=staff_id)
@@ -44,7 +41,6 @@ def staff_detail(request, staff_id):
 
 
 @login_required
-@manager_required
 def attendance_list(request):
     """Danh sách chấm công"""
     from django.utils import timezone

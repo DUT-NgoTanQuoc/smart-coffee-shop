@@ -1,106 +1,149 @@
-from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib.auth.decorators import login_required
+import json
+from decimal import Decimal
+
 from django.contrib import messages
+from django.contrib.auth.decorators import login_required
+from django.db import connection
+from django.db.models import F
+from django.shortcuts import render, redirect, get_object_or_404
+from django.utils import timezone
+
+from .forms import IngredientForm, IngredientRestockForm
 from .models import Ingredient
-from apps.core.decorators import manager_required
 
 
 @login_required
 def ingredient_list(request):
     """Danh sách nguyên liệu"""
     ingredients = Ingredient.objects.all().order_by('name')
-    
+
     # Lọc nguyên liệu sắp hết
     low_stock_only = request.GET.get('low_stock')
     if low_stock_only:
-        ingredients = [i for i in ingredients if i.is_low_stock()]
-    
+        ingredients = ingredients.filter(quantity__lte=F('min_quantity'))
+
     context = {
         'ingredients': ingredients,
+        'low_stock_only': bool(low_stock_only),
     }
     
     return render(request, 'ingredients/ingredient_list.html', context)
 
 
 @login_required
-@manager_required
 def ingredient_create(request):
     """Tạo nguyên liệu mới"""
+    form = IngredientForm(request.POST or None)
+
     if request.method == 'POST':
-        try:
-            ingredient = Ingredient()
-            ingredient.name = request.POST.get('name')
-            ingredient.unit = request.POST.get('unit')
-            ingredient.quantity = request.POST.get('quantity', 0)
-            ingredient.min_quantity = request.POST.get('min_quantity', 0)
-            ingredient.price_per_unit = request.POST.get('price_per_unit')
-            ingredient.supplier = request.POST.get('supplier', '')
-            
-            ingredient.save()
-            
+        if form.is_valid():
+            ingredient = form.save()
             messages.success(request, 'Nguyên liệu đã được tạo thành công!')
             return redirect('ingredient_list')
-            
-        except Exception as e:
-            messages.error(request, f'Lỗi: {str(e)}')
-    
-    return render(request, 'ingredients/ingredient_form.html')
+        messages.error(request, 'Vui lòng kiểm tra lại thông tin vừa nhập.')
+
+    return render(request, 'ingredients/ingredient_form.html', {'form': form})
 
 
 @login_required
-@manager_required
 def ingredient_update(request, ingredient_id):
     """Cập nhật nguyên liệu"""
     ingredient = get_object_or_404(Ingredient, id=ingredient_id)
-    
+
+    form = IngredientForm(request.POST or None, instance=ingredient)
+
     if request.method == 'POST':
-        try:
-            ingredient.name = request.POST.get('name')
-            ingredient.unit = request.POST.get('unit')
-            ingredient.quantity = request.POST.get('quantity')
-            ingredient.min_quantity = request.POST.get('min_quantity')
-            ingredient.price_per_unit = request.POST.get('price_per_unit')
-            ingredient.supplier = request.POST.get('supplier', '')
-            
-            ingredient.save()
-            
+        if form.is_valid():
+            form.save()
             messages.success(request, 'Nguyên liệu đã được cập nhật!')
             return redirect('ingredient_list')
-            
-        except Exception as e:
-            messages.error(request, f'Lỗi: {str(e)}')
-    
+        messages.error(request, 'Vui lòng kiểm tra lại thông tin vừa nhập.')
+
     context = {
         'ingredient': ingredient,
+        'form': form,
     }
-    
+
     return render(request, 'ingredients/ingredient_form.html', context)
 
 
 @login_required
-@manager_required
 def ingredient_restock(request, ingredient_id):
     """Nhập thêm nguyên liệu"""
     ingredient = get_object_or_404(Ingredient, id=ingredient_id)
-    
+
+    form = IngredientRestockForm(request.POST or None)
+
     if request.method == 'POST':
-        try:
-            quantity_to_add = float(request.POST.get('quantity', 0))
+        if form.is_valid():
+            quantity_to_add = form.cleaned_data['quantity']
+            before_quantity = ingredient.quantity
+            before_restock_date = ingredient.last_restock_date
+
             ingredient.add_stock(quantity_to_add)
-            
-            # Cập nhật ngày nhập hàng
-            from django.utils import timezone
+
             ingredient.last_restock_date = timezone.now().date()
             ingredient.save()
-            
+
+            total_value = quantity_to_add * ingredient.price_per_unit
+            _log_restock_action(
+                request,
+                ingredient,
+                quantity_to_add,
+                before_quantity,
+                before_restock_date,
+                total_value,
+            )
+
             messages.success(request, f'Đã nhập thêm {quantity_to_add} {ingredient.unit}')
             return redirect('ingredient_list')
-            
-        except Exception as e:
-            messages.error(request, f'Lỗi: {str(e)}')
-    
+        messages.error(request, 'Vui lòng nhập số lượng hợp lệ (> 0).')
+
     context = {
         'ingredient': ingredient,
+        'form': form,
     }
-    
+
     return render(request, 'ingredients/ingredient_restock.html', context)
+
+
+def _log_restock_action(
+    request,
+    ingredient: Ingredient,
+    added_qty: Decimal,
+    before_qty: Decimal,
+    before_restock_date,
+    total_value: Decimal,
+):
+    """Ghi log nhập kho vào bảng audit_logs (có sẵn trong schema)."""
+    try:
+        new_quantity = ingredient.quantity
+        data_old = {
+            'quantity': str(before_qty),
+            'last_restock_date': before_restock_date.isoformat() if before_restock_date else None,
+        }
+        data_new = {
+            'added_quantity': str(added_qty),
+            'new_quantity': str(new_quantity),
+            'total_value': str(total_value),
+        }
+
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                INSERT INTO audit_logs (account_id, action, module, target_id, old_data, new_data, ip_address)
+                VALUES (%s, %s, %s, %s, %s::jsonb, %s::jsonb, %s)
+                """,
+                [
+                    request.user.id if request.user.is_authenticated else None,
+                    'ingredient.restock',
+                    'ingredient',
+                    ingredient.id,
+                    json.dumps(data_old),
+                    json.dumps(data_new),
+                    request.META.get('REMOTE_ADDR'),
+                ],
+            )
+    except Exception:
+        # Không chặn luồng chính nếu việc log thất bại
+        return

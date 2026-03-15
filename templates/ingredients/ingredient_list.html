@@ -17,8 +17,8 @@
         <form method="GET" class="row g-3">
             <div class="col-md-4">
                 <div class="form-check">
-                    <input type="checkbox" name="low_stock" class="form-check-input" id="lowStock"
-                           {% if request.GET.low_stock %}checked{% endif %}>
+              <input type="checkbox" name="low_stock" class="form-check-input" id="lowStock"
+                  {% if low_stock_only %}checked{% endif %}>
                     <label class="form-check-label" for="lowStock">
                         Chỉ hiển thị nguyên liệu sắp hết
                     </label>
