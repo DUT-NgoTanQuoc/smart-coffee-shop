@@ -1,9 +1,8 @@
-from decimal import Decimal
-
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from .models import Product, Category, Recipe, Customization
+from .forms import ProductForm
 
 
 @login_required
@@ -44,42 +43,21 @@ def product_detail(request, product_id):
 def product_create(request):
     """Tạo sản phẩm mới"""
     if request.method == 'POST':
-        # Xử lý tạo sản phẩm
-        # Code đơn giản, trong thực tế nên dùng Django Forms
-        try:
-            product = Product()
-            product.name = request.POST.get('name')
-            product.description = request.POST.get('description', '')
-            
-            category_id = request.POST.get('category')
-            if category_id:
-                product.category_id = category_id
-            
-            product.price_small = _to_decimal_or_none(request.POST.get('price_small'))
-            product.price_medium = _to_decimal_or_none(request.POST.get('price_medium'))
-            product.price_large = _to_decimal_or_none(request.POST.get('price_large'))
-
-            # Cập nhật trạng thái còn hàng
-            product.is_available = bool(request.POST.get('is_available'))
-            
-            if 'image' in request.FILES:
-                image_file = request.FILES['image']
-                product.image.save(image_file.name, image_file, save=False)
-                product.save()
-            
-            product.save()
-            
+        form = ProductForm(request.POST, request.FILES)
+        if form.is_valid():
+            product = form.save()
             messages.success(request, 'Sản phẩm đã được tạo thành công!')
             return redirect('product_detail', product_id=product.id)
-            
-        except Exception as e:
-            messages.error(request, f'Lỗi: {str(e)}')
-    
-    categories = Category.objects.all()
+        else:
+            for field, errors in form.errors.items():
+                for error in errors:
+                    messages.error(request, f'{field}: {error}')
+    else:
+        form = ProductForm()
     
     context = {
+        'form': form,
         'product': None,  # Truyền product=None để template biết đây là tạo mới
-        'categories': categories,
     }
     
     return render(request, 'products/product_form.html', context)
@@ -91,39 +69,21 @@ def product_update(request, product_id):
     product = get_object_or_404(Product, id=product_id)
     
     if request.method == 'POST':
-        try:
-            product.name = request.POST.get('name')
-            product.description = request.POST.get('description', '')
-            
-            category_id = request.POST.get('category')
-            if category_id:
-                product.category_id = category_id
-            
-            product.price_small = _to_decimal_or_none(request.POST.get('price_small'))
-            product.price_medium = _to_decimal_or_none(request.POST.get('price_medium'))
-            product.price_large = _to_decimal_or_none(request.POST.get('price_large'))
-
-            # Cập nhật trạng thái còn hàng
-            product.is_available = bool(request.POST.get('is_available'))
-            
-            if 'image' in request.FILES:
-                image_file = request.FILES['image']
-                product.image.save(image_file.name, image_file, save=False)
-                product.save()
-            
-            product.save()
-            
+        form = ProductForm(request.POST, request.FILES, instance=product)
+        if form.is_valid():
+            form.save()
             messages.success(request, 'Sản phẩm đã được cập nhật!')
             return redirect('product_detail', product_id=product.id)
-            
-        except Exception as e:
-            messages.error(request, f'Lỗi: {str(e)}')
-    
-    categories = Category.objects.all()
+        else:
+            for field, errors in form.errors.items():
+                for error in errors:
+                    messages.error(request, f'{field}: {error}')
+    else:
+        form = ProductForm(instance=product)
     
     context = {
+        'form': form,
         'product': product,
-        'categories': categories,
     }
     
     return render(request, 'products/product_form.html', context)
@@ -144,13 +104,3 @@ def product_delete(request, product_id):
     }
     
     return render(request, 'products/product_confirm_delete.html', context)
-
-
-def _to_decimal_or_none(value):
-    """Chuyển chuỗi nhập giá thành Decimal hoặc None nếu trống"""
-    if value in (None, ''):
-        return None
-    try:
-        return Decimal(value)
-    except Exception:
-        return None

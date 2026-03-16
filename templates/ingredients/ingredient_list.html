@@ -64,7 +64,7 @@
                             </span>
                         </td>
                         <td>{{ ingredient.min_quantity|floatformat:0 }} {{ ingredient.unit }}</td>
-                        <td>{{ ingredient.price_per_unit|floatformat:0 }}đ/{{ ingredient.unit }}</td>
+                        <td>{{ ingredient.price_per_unit|floatformat:0 }} k đ/{{ ingredient.unit }}</td>
                         <td>{{ ingredient.supplier|default:"-" }}</td>
                         <td>
                             {% if ingredient.is_low_stock %}

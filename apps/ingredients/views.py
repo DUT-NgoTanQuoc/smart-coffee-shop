@@ -7,12 +7,38 @@ from django.db import connection
 from django.db.models import F
 from django.shortcuts import render, redirect, get_object_or_404
 from django.utils import timezone
+from django.http import HttpResponseForbidden
 
+from apps.core.models import Account
 from .forms import IngredientForm, IngredientRestockForm
 from .models import Ingredient
 
 
+# Views có thể được truy cập bởi admin hoặc barista
+def ingredient_access_required(view_func):
+    """Decorator cho phép admin hoặc barista truy cập"""
+    def wrapper(request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            return redirect('login')
+        
+        # Cho phép admin (Django superuser)
+        if request.user.is_superuser:
+            return view_func(request, *args, **kwargs)
+        
+        # Cho phép barista (role_id = 3)
+        try:
+            account = Account.objects.get(username=request.user.username)
+            if account.role_id == 3:  # barista
+                return view_func(request, *args, **kwargs)
+        except Account.DoesNotExist:
+            pass
+        
+        return HttpResponseForbidden('Bạn không có quyền truy cập trang này.')
+    return wrapper
+
+
 @login_required
+@ingredient_access_required
 def ingredient_list(request):
     """Danh sách nguyên liệu"""
     ingredients = Ingredient.objects.all().order_by('name')
@@ -31,6 +57,7 @@ def ingredient_list(request):
 
 
 @login_required
+@ingredient_access_required
 def ingredient_create(request):
     """Tạo nguyên liệu mới"""
     form = IngredientForm(request.POST or None)
@@ -46,6 +73,7 @@ def ingredient_create(request):
 
 
 @login_required
+@ingredient_access_required
 def ingredient_update(request, ingredient_id):
     """Cập nhật nguyên liệu"""
     ingredient = get_object_or_404(Ingredient, id=ingredient_id)
@@ -68,6 +96,7 @@ def ingredient_update(request, ingredient_id):
 
 
 @login_required
+@ingredient_access_required
 def ingredient_restock(request, ingredient_id):
     """Nhập thêm nguyên liệu"""
     ingredient = get_object_or_404(Ingredient, id=ingredient_id)

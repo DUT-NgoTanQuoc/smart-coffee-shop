@@ -19,38 +19,54 @@
         <form method="POST" enctype="multipart/form-data" id="productForm">
             {% csrf_token %}
             
+            <!-- Hiển thị lỗi form nếu có -->
+            {% if form.non_field_errors %}
+            <div class="alert alert-danger">
+                {% for error in form.non_field_errors %}
+                <div>{{ error }}</div>
+                {% endfor %}
+            </div>
+            {% endif %}
+            
             <div class="row">
                 <!-- Basic Info -->
                 <div class="col-md-6">
                     <h5 class="mb-3"><i class="bi bi-info-circle"></i> Thông tin cơ bản</h5>
                     
+                    <!-- Name Field -->
                     <div class="mb-3">
                         <label class="form-label">Tên sản phẩm <span class="text-danger">*</span></label>
-                        <input type="text" name="name" class="form-control" 
-                               value="{% if product %}{{ product.name }}{% endif %}" required>
+                        {{ form.name }}
+                        {% if form.name.errors %}
+                        <div class="invalid-feedback d-block">{{ form.name.errors.0 }}</div>
+                        {% endif %}
                     </div>
                     
+                    <!-- Category Field -->
                     <div class="mb-3">
                         <label class="form-label">Danh mục</label>
-                        <select name="category" class="form-select">
-                            <option value="">-- Chọn danh mục --</option>
-                            {% for cat in categories %}
-                            <option value="{{ cat.id }}" 
-                                    {% if product.category_id == cat.id %}selected{% endif %}>
-                                {{ cat.name }}
-                            </option>
-                            {% endfor %}
-                        </select>
+                        {{ form.category }}
+                        {% if form.category.errors %}
+                        <div class="invalid-feedback d-block">{{ form.category.errors.0 }}</div>
+                        {% endif %}
                     </div>
                     
+                    <!-- Description Field -->
                     <div class="mb-3">
                         <label class="form-label">Mô tả</label>
-                        <textarea name="description" class="form-control" rows="3">{% if product %}{{ product.description }}{% endif %}</textarea>
+                        {{ form.description }}
+                        {% if form.description.errors %}
+                        <div class="invalid-feedback d-block">{{ form.description.errors.0 }}</div>
+                        {% endif %}
                     </div>
                     
+                    <!-- Image Field -->
                     <div class="mb-3">
                         <label class="form-label">Hình ảnh</label>
-                        <input type="file" name="image" class="form-control" accept="image/*">
+                        {{ form.image }}
+                        {% if form.image.errors %}
+                        <div class="invalid-feedback d-block">{{ form.image.errors.0 }}</div>
+                        {% endif %}
                         {% if product.image %}
                         <div class="mt-2">
                             <img src="{% if product.image.url %}{{ product.image.url }}{% else %}/media/{{ product.image }}{% endif %}" alt="Current image" 
@@ -62,12 +78,15 @@
                         {% endif %}
                     </div>
                     
+                    <!-- Is Available Field -->
                     <div class="mb-3 form-check">
-                        <input type="checkbox" name="is_available" class="form-check-input" id="isAvailable"
-                               {% if product.is_available or not product %}checked{% endif %}>
-                        <label class="form-check-label" for="isAvailable">
+                        {{ form.is_available }}
+                        <label class="form-check-label" for="{{ form.is_available.id_for_label }}">
                             Còn hàng
                         </label>
+                        {% if form.is_available.errors %}
+                        <div class="invalid-feedback d-block">{{ form.is_available.errors.0 }}</div>
+                        {% endif %}
                     </div>
                 </div>
                 
@@ -75,31 +94,40 @@
                 <div class="col-md-6">
                     <h5 class="mb-3"><i class="bi bi-tag"></i> Giá theo size</h5>
                     
+                    <!-- Price Small -->
                     <div class="mb-3">
                         <label class="form-label">Giá size Small (S)</label>
                         <div class="input-group">
-                            <input type="number" name="price_small" class="form-control" 
-                                   value="{% if product and product.price_small %}{{ product.price_small|unlocalize }}{% endif %}" min="0" step="100">
+                            {{ form.price_small }}
                             <span class="input-group-text">đ</span>
                         </div>
+                        {% if form.price_small.errors %}
+                        <div class="invalid-feedback d-block">{{ form.price_small.errors.0 }}</div>
+                        {% endif %}
                     </div>
                     
+                    <!-- Price Medium -->
                     <div class="mb-3">
                         <label class="form-label">Giá size Medium (M)</label>
                         <div class="input-group">
-                            <input type="number" name="price_medium" class="form-control" 
-                                   value="{% if product and product.price_medium %}{{ product.price_medium|unlocalize }}{% endif %}" min="0" step="100">
+                            {{ form.price_medium }}
                             <span class="input-group-text">đ</span>
                         </div>
+                        {% if form.price_medium.errors %}
+                        <div class="invalid-feedback d-block">{{ form.price_medium.errors.0 }}</div>
+                        {% endif %}
                     </div>
                     
+                    <!-- Price Large -->
                     <div class="mb-3">
                         <label class="form-label">Giá size Large (L)</label>
                         <div class="input-group">
-                            <input type="number" name="price_large" class="form-control" 
-                                   value="{% if product and product.price_large %}{{ product.price_large|unlocalize }}{% endif %}" min="0" step="100">
+                            {{ form.price_large }}
                             <span class="input-group-text">đ</span>
                         </div>
+                        {% if form.price_large.errors %}
+                        <div class="invalid-feedback d-block">{{ form.price_large.errors.0 }}</div>
+                        {% endif %}
                     </div>
                     
                     <div class="alert alert-info">
@@ -122,55 +150,4 @@
         </form>
     </div>
 </div>
-{% endblock %}
-
-{% block extra_js %}
-<script>
-// Disable nút Cập nhật khi chưa thay đổi (chỉ áp dụng khi đang sửa)
-(function() {
-    const form = document.getElementById('productForm');
-    const submitBtn = document.getElementById('submitBtn');
-    const isEditing = {{ product|yesno:'true,false' }};
-    if (!form || !submitBtn || !isEditing) return;
-
-    const fields = Array.from(form.querySelectorAll('input, textarea, select'))
-        .filter(el => el.name && el.type !== 'hidden');
-
-    const original = new Map();
-    fields.forEach(el => {
-        if (el.type === 'checkbox' || el.type === 'radio') {
-            original.set(el.name, el.checked);
-        } else {
-            original.set(el.name, el.value);
-        }
-    });
-
-    function checkChanged() {
-        let changed = false;
-        for (const el of fields) {
-            let current;
-            if (el.type === 'checkbox' || el.type === 'radio') {
-                current = el.checked;
-            } else if (el.type === 'file') {
-                // Có chọn file mới => xem như thay đổi
-                current = el.files.length > 0;
-            } else {
-                current = el.value;
-            }
-            const orig = original.get(el.name);
-            if (current !== orig) {
-                changed = true;
-                break;
-            }
-        }
-        submitBtn.disabled = !changed;
-    }
-
-    checkChanged();
-    fields.forEach(el => {
-        const evt = (el.type === 'checkbox' || el.type === 'radio' || el.type === 'file') ? 'change' : 'input';
-        el.addEventListener(evt, checkChanged);
-    });
-})();
-</script>
 {% endblock %}

@@ -14,7 +14,7 @@ def role_required(*allowed_roles):
     Decorator to check access permission based on role
     
     Usage:
-        @role_required('manager', 'cashier')
+        @role_required('admin', 'cashier')
         def my_view(request):
             ...
     """
@@ -30,27 +30,66 @@ def role_required(*allowed_roles):
             if request.user.is_superuser:
                 return view_func(request, *args, **kwargs)
             
-            # Kiểm tra role của staff - match by username contains
+            # Kiểm tra role của staff
             try:
-                from django.db import models
-                from apps.staff.models import Staff
-                staff = Staff.objects.filter(
-                    models.Q(email__icontains=request.user.username) | 
-                    models.Q(phone__icontains=request.user.username),
-                    is_active=True
-                ).first()
+                from apps.core.utils import get_current_staff
+                staff = get_current_staff(request.user)
                 
                 if staff and staff.role in allowed_roles:
                     return view_func(request, *args, **kwargs)
                 else:
                     messages.error(request, 'Bạn không có quyền truy cập chức năng này.')
                     return redirect('dashboard')
-            except:
+            except Exception as e:
                 messages.error(request, 'Không tìm thấy thông tin nhân viên.')
                 return redirect('dashboard')
         
         return wrapper
     return decorator
+
+
+def admin_required(view_func):
+    """
+    Decorator yêu cầu role Admin (superuser hoặc admin role)
+    Decorator requiring Admin role
+    """
+    @wraps(view_func)
+    def wrapper(request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            messages.error(request, 'Vui lòng đăng nhập.')
+            return redirect('login')
+        
+        if request.user.is_superuser:
+            return view_func(request, *args, **kwargs)
+        
+        try:
+            from apps.core.utils import get_current_staff
+            staff = get_current_staff(request.user)
+            if staff and staff.role == 'admin':
+                return view_func(request, *args, **kwargs)
+        except:
+            pass
+        
+        messages.error(request, 'Chỉ Admin mới có quyền truy cập.')
+        return redirect('dashboard')
+    
+    return wrapper
+
+
+def cashier_required(view_func):
+    """
+    Decorator yêu cầu role Cashier trở lên (cashier hoặc admin)
+    Decorator requiring Cashier role or higher
+    """
+    return role_required('admin', 'cashier')(view_func)
+
+
+def barista_required(view_func):
+    """
+    Decorator yêu cầu role Barista trở lên (barista hoặc admin)
+    Decorator requiring Barista role or higher
+    """
+    return role_required('admin', 'barista')(view_func)
 
 
 def manager_required(view_func):

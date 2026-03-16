@@ -1,0 +1,188 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Admin Dashboard - Quản Lý Toàn Bộ{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <h1 class="mb-4">
+        <i class="fas fa-tachometer-alt"></i> Admin Dashboard
+    </h1>
+    
+    <!-- Statistics Row -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <h5 class="card-title">Tổng Đơn Hàng</h5>
+                    <h2>{{ total_orders }}</h2>
+                    <small>Tất cả thời gian</small>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="card bg-info text-white">
+                <div class="card-body">
+                    <h5 class="card-title">Hôm Nay</h5>
+                    <h2>{{ orders_today }}</h2>
+                    <small>Đơn hàng</small>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="card bg-success text-white">
+                <div class="card-body">
+                    <h5 class="card-title">Doanh Thu</h5>
+                    <h2>{{ total_revenue|floatformat:0 }}</h2>
+                    <small>VNĐ (Toàn bộ)</small>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="card bg-warning text-dark">
+                <div class="card-body">
+                    <h5 class="card-title">Hôm Nay</h5>
+                    <h2>{{ revenue_today|floatformat:0 }}</h2>
+                    <small>VNĐ</small>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Order Status Overview -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body text-center">
+                    <h5>⏳ Chờ Xử Lý</h5>
+                    <h2 class="text-danger">{{ pending_orders }}</h2>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body text-center">
+                    <h5>👨‍🍳 Đang Chế Biến</h5>
+                    <h2 class="text-warning">{{ preparing_orders }}</h2>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body text-center">
+                    <h5>✅ Hoàn Thành</h5>
+                    <h2 class="text-success">{{ completed_orders }}</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Low Stock Alert -->
+    {% if low_stock_ingredients %}
+    <div class="alert alert-warning alert-dismissible fade show" role="alert">
+        <h4 class="alert-heading">⚠️ Cảnh Báo Nguyên Liệu</h4>
+        <p>Có {{ low_stock_ingredients|length }} nguyên liệu sắp hết:</p>
+        <ul class="mb-0">
+            {% for ing in low_stock_ingredients %}
+            <li>{{ ing.name }}: <strong>{{ ing.quantity }}{{ ing.unit }}</strong> (Tối thiểu: {{ ing.min_quantity }})</li>
+            {% endfor %}
+        </ul>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+    {% endif %}
+    
+    <!-- Management Sections -->
+    <div class="row">
+        <div class="col-md-6 mb-3">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="fas fa-users"></i> Quản Lý Nhân Viên</h5>
+                </div>
+                <div class="card-body">
+                    <p>Tổng nhân viên: <strong>{{ total_staff }}</strong></p>
+                    <a href="{% url 'staff_list' %}" class="btn btn-primary">
+                        <i class="fas fa-list"></i> Danh Sách
+                    </a>
+                    <a href="{% url 'staff_create' %}" class="btn btn-success">
+                        <i class="fas fa-plus"></i> Thêm Mới
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6 mb-3">
+            <div class="card">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0"><i class="fas fa-coffee"></i> Quản Lý Sản Phẩm</h5>
+                </div>
+                <div class="card-body">
+                    <p>Tổng sản phẩm: <strong>{{ total_products }}</strong></p>
+                    <a href="{% url 'product_list' %}" class="btn btn-primary">
+                        <i class="fas fa-list"></i> Danh Sách
+                    </a>
+                    <a href="{% url 'product_create' %}" class="btn btn-success">
+                        <i class="fas fa-plus"></i> Thêm Mới
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6 mb-3">
+            <div class="card">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0"><i class="fas fa-leaf"></i> Quản Lý Nguyên Liệu</h5>
+                </div>
+                <div class="card-body">
+                    <p>Nguyên liệu sắp hết: <strong class="text-danger">{{ low_stock_ingredients|length }}</strong></p>
+                    <a href="{% url 'ingredient_list' %}" class="btn btn-primary">
+                        <i class="fas fa-list"></i> Danh Sách
+                    </a>
+                    <a href="{% url 'ingredient_create' %}" class="btn btn-success">
+                        <i class="fas fa-plus"></i> Thêm Mới
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6 mb-3">
+            <div class="card">
+                <div class="card-header bg-warning text-dark">
+                    <h5 class="mb-0"><i class="fas fa-receipt"></i> Quản Lý Đơn Hàng</h5>
+                </div>
+                <div class="card-body">
+                    <p>Tổng đơn: <strong>{{ total_orders }}</strong></p>
+                    <a href="{% url 'order_list' %}" class="btn btn-primary">
+                        <i class="fas fa-list"></i> Danh Sách
+                    </a>
+                    <a href="{% url 'create_order' %}" class="btn btn-success">
+                        <i class="fas fa-plus"></i> Tạo Mới
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Quick Actions -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <h5>Hành Động Nhanh</h5>
+            <div class="btn-group" role="group">
+                <a href="{% url 'admin-dashboard' %}" class="btn btn-outline-secondary">
+                    <i class="fas fa-sync"></i> Làm mới
+                </a>
+                <a href="/admin/" class="btn btn-outline-primary" target="_blank">
+                    <i class="fas fa-cogs"></i> Django Admin
+                </a>
+                <a href="{% url 'ingredient-tracking' %}" class="btn btn-outline-info">
+                    <i class="fas fa-chart-bar"></i> Theo dõi Nguyên Liệu
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

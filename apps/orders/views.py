@@ -25,6 +25,7 @@ def create_order(request):
             with transaction.atomic():
                 # Lấy dữ liệu từ POST
                 data = json.loads(request.body)
+                print(f"[CREATE_ORDER] POST data: {data}")
                 
                 # Tạo đơn hàng
                 order = Order()
@@ -75,9 +76,11 @@ def create_order(request):
                 order.final_amount = final_amount
                 order.status = 'pending'
                 order.save()
+                print(f"[CREATE_ORDER] Order created: {order.id}, items: {len(items_data)}")
                 
                 # Tạo order items
                 for item_data in items_data:
+                    print(f"[CREATE_ORDER] Processing item: {item_data}")
                     product = Product.objects.get(id=item_data['product_id'])
                     size = item_data['size']
                     quantity = item_data['quantity']
@@ -102,6 +105,7 @@ def create_order(request):
                         customizations=custom_json,
                         subtotal=(price + custom_price) * quantity
                     )
+                    print(f"[CREATE_ORDER] OrderItem created: {product.name} x{quantity}")
                 
                 # Tạo payment
                 payment_method = data.get('payment_method', 'cash')
@@ -111,9 +115,9 @@ def create_order(request):
                     amount=final_amount
                 )
                 
-                # Đánh dấu hoàn thành
-                order.status = 'completed'
-                order.save()
+                # Status vẫn là 'pending' để barista xử lý (KHÔNG set thành 'completed')
+                # order.status = 'completed'
+                # order.save()
                 
                 return JsonResponse({
                     'success': True,
@@ -122,6 +126,9 @@ def create_order(request):
                 })
                 
         except Exception as e:
+            import traceback
+            print(f"[CREATE_ORDER] ERROR: {str(e)}")
+            print(traceback.format_exc())
             return JsonResponse({
                 'success': False,
                 'message': str(e)
@@ -191,3 +198,49 @@ def search_customer(request):
             'found': False,
             'message': 'Không tìm thấy khách hàng'
         })
+
+
+@login_required
+def update_order_status(request, order_id):
+    """
+    API endpoint - Update order status
+    POST: {status: 'pending' | 'preparing' | 'completed'}
+    """
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'message': 'Method not allowed'}, status=405)
+    
+    try:
+        order = Order.objects.get(id=order_id)
+        
+        # Check permission - only barista/admin can update
+        if not request.user.is_superuser:
+            try:
+                staff = get_current_staff(request.user)
+                if not staff or staff.role not in ['barista', 'admin']:
+                    return JsonResponse({'success': False, 'message': 'Unauthorized'}, status=403)
+            except:
+                return JsonResponse({'success': False, 'message': 'Unauthorized'}, status=403)
+        
+        data = json.loads(request.body)
+        new_status = data.get('status')
+        
+        if new_status not in dict(Order.STATUS_CHOICES):
+            return JsonResponse({'success': False, 'message': 'Invalid status'})
+        
+        order.status = new_status
+        if new_status == 'completed':
+            order.completed_at = timezone.now()
+        order.save()
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'Đơn hàng cập nhật thành: {order.get_status_display()}',
+            'order_id': order.id,
+            'status': order.status,
+            'status_display': order.get_status_display(),
+        })
+    
+    except Order.DoesNotExist:
+        return JsonResponse({'success': False, 'message': 'Đơn hàng không tồn tại'}, status=404)
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': str(e)}, status=500)

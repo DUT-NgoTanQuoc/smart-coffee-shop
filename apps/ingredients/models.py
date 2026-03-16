@@ -6,8 +6,21 @@ class Ingredient(models.Model):
     Model nguyên liệu - quản lý kho nguyên liệu
     Ingredient model - inventory management
     """
+    UNIT_CHOICES = [
+        ('kg', 'Ki-lo-gam (kg)'),
+        ('g', 'Gam (g)'),
+        ('l', 'Lít (l)'),
+        ('ml', 'Mili-lít (ml)'),
+        ('pcs', 'Cái/Chiếc (pcs)'),
+    ]
+    
     name = models.CharField(max_length=100, verbose_name='Tên nguyên liệu')
-    unit = models.CharField(max_length=20, verbose_name='Đơn vị (g, ml, cái)')
+    unit = models.CharField(
+        max_length=20, 
+        choices=UNIT_CHOICES,
+        default='kg',
+        verbose_name='Đơn vị'
+    )
     quantity = models.DecimalField(
         max_digits=10, 
         decimal_places=2, 

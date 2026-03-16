@@ -58,3 +58,13 @@ class ProductForm(forms.ModelForm):
         # Thêm label để template sử dụng
         self.fields['category'].label = "Danh mục"
         self.fields['category'].empty_label = "-- Chọn danh mục --"
+        # Description có thể trống
+        self.fields['description'].required = False
+    
+    def clean_description(self):
+        """Đảm bảo description không bị set thành chuỗi rỗng"""
+        description = self.cleaned_data.get('description')
+        # Nếu người dùng không nhập gì, trả về None thay vì chuỗi rỗng
+        if description == '':
+            return None
+        return description

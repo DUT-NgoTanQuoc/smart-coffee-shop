@@ -1,10 +1,11 @@
-from django.shortcuts import render
+from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
 from .models import DailyStat
 from .ml_models import RevenuePredictor, StockPredictor, TrendAnalyzer
 from apps.orders.models import Order
 from apps.customers.models import Customer
 from apps.ingredients.models import Ingredient
+from apps.core.models import Account
 from django.utils import timezone
 from datetime import timedelta
 
@@ -14,7 +15,25 @@ def dashboard(request):
     """
     Dashboard chính - Tổng quan hệ thống
     Main dashboard - System overview
+    - Barista: Redirect to barista dashboard (4-box layout)
+    - Cashier: Redirect to cashier dashboard (POS)
+    - Admin: Show admin dashboard (stats)
     """
+    # Check user role
+    if request.user.is_superuser:
+        # Admin stays on admin dashboard
+        pass
+    else:
+        try:
+            staff = Account.objects.get(username=request.user.username)
+            if staff.role_id == 3:  # Barista
+                return redirect('barista-dashboard')
+            elif staff.role_id == 2:  # Cashier
+                return redirect('cashier-dashboard')
+        except Account.DoesNotExist:
+            # User không có Account record, hiển thị admin dashboard
+            pass
+    
     today = timezone.now().date()
     
     # Thống kê hôm nay

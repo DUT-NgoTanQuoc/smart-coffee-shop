@@ -1,0 +1,199 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Chi Tiết Đơn - #{{ order.id }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <!-- Order Header -->
+        <div class="col-12">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h4 class="mb-0">Đơn Hàng #{{ order.id }}</h4>
+                        </div>
+                        <div class="col-md-6 text-end">
+                            <span class="badge {% if order.status == 'pending' %}bg-danger{% elif order.status == 'preparing' %}bg-warning{% else %}bg-success{% endif %}" style="font-size: 1.2em;">
+                                {{ order.get_status_display }}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p><strong>Khách hàng:</strong> {% if order.customer %}{{ order.customer.name }}{% else %}Khách nặc danh{% endif %}</p>
+                            <p><strong>SĐT:</strong> {% if order.customer %}{{ order.customer.phone }}{% else %}-{% endif %}</p>
+                        </div>
+                        <div class="col-md-6 text-end">
+                            <p><strong>Nhân viên:</strong> {% if order.staff %}{{ order.staff.name }}{% else %}-{% endif %}</p>
+                            <p><strong>Giờ tạo:</strong> {{ order.created_at|date:"H:i:s" }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row">
+        <!-- Items Section -->
+        <div class="col-md-8">
+            <h5 class="mb-3">📋 Các Mặt Hàng</h5>
+            
+            {% for item in items %}
+            <div class="card mb-3">
+                <div class="card-header bg-light">
+                    <div class="row">
+                        <div class="col-md-8">
+                            <h6 class="mb-0">{{ item.product.name }}</h6>
+                        </div>
+                        <div class="col-md-4 text-end">
+                            <span class="badge bg-primary">x{{ item.quantity }}</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <!-- Recipe -->
+                    <h6>👨‍🍳 Công Thức:</h6>
+                    {% if item.product.recipes.all %}
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Nguyên Liệu</th>
+                                    <th class="text-end">Số Lượng</th>
+                                    <th class="text-end">Có Sẵn</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for recipe in item.product.recipes.all %}
+                                <tr>
+                                    <td>{{ recipe.ingredient.name }}</td>
+                                    <td class="text-end">
+                                        <strong>{{ recipe.quantity|floatformat:1 }}{{ recipe.ingredient.unit }}</strong>
+                                    </td>
+                                    <td class="text-end">
+                                        <span class="{% if recipe.ingredient.quantity < recipe.ingredient.min_quantity %}badge bg-danger{% else %}badge bg-success{% endif %}">
+                                            {{ recipe.ingredient.quantity }}{{ recipe.ingredient.unit }}
+                                        </span>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p class="text-muted small">Chưa có công thức</p>
+                    {% endif %}
+                    
+                    <!-- Size / Customizations -->
+                    {% if item.size %}
+                    <p class="mt-2"><strong>Kích cỡ:</strong> {{ item.get_size_display }}</p>
+                    {% endif %}
+                    
+                    {% if item.customizations.all %}
+                    <p><strong>Tùy chỉnh:</strong></p>
+                    <ul class="small">
+                        {% for custom in item.customizations.all %}
+                        <li>{{ custom.name }}</li>
+                        {% endfor %}
+                    </ul>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        
+        <!-- Ingredients Summary -->
+        <div class="col-md-4">
+            <h5 class="mb-3">🧪 Tổng Nguyên Liệu Cần</h5>
+            
+            <div class="card">
+                <div class="card-body">
+                    {% if ingredients_used %}
+                    <div class="table-responsive">
+                        <table class="table table-sm table-borderless">
+                            <tbody>
+                                {% for ing_data in ingredients_used %}
+                                <tr>
+                                    <td>{{ ing_data.ingredient.name }}</td>
+                                    <td class="text-end">
+                                        <strong>{{ ing_data.quantity|floatformat:1 }}</strong>{{ ing_data.unit }}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p class="text-muted">Chưa có nguyên liệu nào</p>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <!-- Status Actions -->
+            <div class="card mt-3">
+                <div class="card-header">
+                    <h6 class="mb-0">⚙️ Hành Động</h6>
+                </div>
+                <div class="card-body">
+                    {% if order.status == 'pending' %}
+                    <button class="btn btn-warning w-100 mb-2" onclick="updateStatus('preparing')">
+                        <i class="fas fa-play"></i> Bắt Đầu Chế Biến
+                    </button>
+                    {% elif order.status == 'preparing' %}
+                    <button class="btn btn-success w-100 mb-2" onclick="updateStatus('completed')">
+                        <i class="fas fa-check"></i> Hoàn Thành
+                    </button>
+                    {% endif %}
+                    
+                    <a href="{% url 'barista-dashboard' %}" class="btn btn-secondary w-100">
+                        <i class="fas fa-arrow-left"></i> Quay Lại
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function updateStatus(newStatus) {
+    if (!confirm('Xác nhận cập nhật trạng thái?')) return;
+    
+    fetch(`/orders/api/{{ order.id }}/status/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken')
+        },
+        body: JSON.stringify({status: newStatus})
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('Lỗi: ' + (data.message || 'Không tìm được đơn'));
+        }
+    })
+    .catch(e => alert('Lỗi: ' + e.message));
+}
+
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+</script>
+{% endblock %}

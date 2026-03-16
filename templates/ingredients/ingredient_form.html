@@ -48,7 +48,7 @@
                     <div class="mb-3">
                         <label class="form-label">Đơn vị <span class="text-danger">*</span></label>
                         {{ form.unit }}
-                        <small class="text-muted d-block">Ví dụ: g, ml, cái, kg, lít</small>
+                        <small class="text-muted d-block">Chọn: kg, g, lít (l), mili-lít (ml), hoặc cái (pcs)</small>
                         {% if form.unit.errors %}<div class="text-danger small">{{ form.unit.errors.0 }}</div>{% endif %}
                     </div>
                     
@@ -76,8 +76,9 @@
                     </div>
                     
                     <div class="mb-3">
-                        <label class="form-label">Giá mỗi đơn vị</label>
+                        <label class="form-label">Giá mỗi đơn vị (nghìn đồng)</label>
                         {{ form.price_per_unit }}
+                        <small class="text-muted d-block">VD: Nhập 10 = 10 k đ/đơn vị, 50 = 50 k đ/đơn vị</small>
                         {% if form.price_per_unit.errors %}<div class="text-danger small">{{ form.price_per_unit.errors.0 }}</div>{% endif %}
                     </div>
                 </div>

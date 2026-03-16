@@ -18,13 +18,24 @@ class IngredientForm(forms.ModelForm):
             'price_per_unit',
             'supplier',
         ]
+        labels = {
+            'name': 'Tên nguyên liệu',
+            'unit': 'Đơn vị',
+            'quantity': 'Số lượng hiện tại',
+            'min_quantity': 'Số lượng tối thiểu',
+            'price_per_unit': 'Giá (nghìn đồng/đơn vị)',
+            'supplier': 'Nhà cung cấp',
+        }
+        help_texts = {
+            'price_per_unit': 'Nhập giá theo đơn vị tính (k đ)',
+        }
         widgets = {
             'name': forms.TextInput(attrs={'class': 'form-control', 'required': True}),
-            'unit': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'g, ml, cái,...', 'required': True}),
+            'unit': forms.Select(attrs={'class': 'form-control', 'required': True}),
             'supplier': forms.TextInput(attrs={'class': 'form-control'}),
             'quantity': forms.NumberInput(attrs={'class': 'form-control', 'min': '0', 'step': '0.01'}),
             'min_quantity': forms.NumberInput(attrs={'class': 'form-control', 'min': '0', 'step': '0.01'}),
-            'price_per_unit': forms.NumberInput(attrs={'class': 'form-control', 'min': '0', 'step': '100'}),
+            'price_per_unit': forms.NumberInput(attrs={'class': 'form-control', 'min': '0', 'step': '1', 'placeholder': 'VD: 10, 50, 100...'}),
         }
 
     def clean_quantity(self):

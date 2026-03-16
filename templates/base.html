@@ -27,37 +27,91 @@
                 <i class="bi bi-cup-hot-fill"></i> Coffee Shop
             </div>
             <div class="list-group list-group-flush">
-                <a href="{% url 'dashboard' %}" class="list-group-item list-group-item-action bg-dark text-white">
-                    <i class="bi bi-speedometer2"></i> Dashboard
-                </a>
-                <a href="{% url 'create_order' %}" class="list-group-item list-group-item-action bg-dark text-white">
-                    <i class="bi bi-cart-plus"></i> POS - Đặt hàng
-                </a>
-                <a href="{% url 'order_list' %}" class="list-group-item list-group-item-action bg-dark text-white">
-                    <i class="bi bi-receipt"></i> Đơn hàng
-                </a>
-                <a href="{% url 'product_list' %}" class="list-group-item list-group-item-action bg-dark text-white">
-                    <i class="bi bi-cup"></i> Sản phẩm
-                </a>
-                <a href="{% url 'ingredient_list' %}" class="list-group-item list-group-item-action bg-dark text-white">
-                    <i class="bi bi-box-seam"></i> Nguyên liệu
-                </a>
-                <a href="{% url 'customer_list' %}" class="list-group-item list-group-item-action bg-dark text-white">
-                    <i class="bi bi-people"></i> Khách hàng
-                </a>
-                <a href="{% url 'staff_list' %}" class="list-group-item list-group-item-action bg-dark text-white">
-                    <i class="bi bi-person-badge"></i> Nhân viên
-                </a>
-                <div class="text-white-50 px-3 py-2 small">PHÂN TÍCH AI</div>
-                <a href="{% url 'revenue_forecast' %}" class="list-group-item list-group-item-action bg-dark text-white">
-                    <i class="bi bi-graph-up"></i> Dự đoán doanh thu
-                </a>
-                <a href="{% url 'stock_prediction' %}" class="list-group-item list-group-item-action bg-dark text-white">
-                    <i class="bi bi-box2"></i> Dự đoán tồn kho
-                </a>
-                <a href="{% url 'trends' %}" class="list-group-item list-group-item-action bg-dark text-white">
-                    <i class="bi bi-bar-chart-line"></i> Xu hướng
-                </a>
+                {% if user.is_authenticated %}
+                    <!-- Home -->
+                    <a href="{% url 'dashboard' %}" class="list-group-item list-group-item-action bg-dark text-white">
+                        <i class="bi bi-house-fill"></i> Trang chủ
+                    </a>
+                    
+                    {% if user.is_superuser %}
+                        <!-- ADMIN MENU -->
+                        <div class="text-white-50 px-3 py-2 small mt-3">DASHBOARDS</div>
+                        <a href="{% url 'admin-dashboard' %}" class="list-group-item list-group-item-action bg-dark text-white">
+                            <i class="bi bi-shield-lock"></i> Admin Dashboard
+                        </a>
+                        
+                        <div class="text-white-50 px-3 py-2 small mt-3">QUẢN LÝ HỆ THỐNG</div>
+                        <a href="{% url 'order_list' %}" class="list-group-item list-group-item-action bg-dark text-white">
+                            <i class="bi bi-receipt"></i> Tất cả đơn hàng
+                        </a>
+                        <a href="{% url 'product_list' %}" class="list-group-item list-group-item-action bg-dark text-white">
+                            <i class="bi bi-cup"></i> Sản phẩm
+                        </a>
+                        <a href="{% url 'ingredient_list' %}" class="list-group-item list-group-item-action bg-dark text-white">
+                            <i class="bi bi-box-seam"></i> Nguyên liệu
+                        </a>
+                        <a href="{% url 'customer_list' %}" class="list-group-item list-group-item-action bg-dark text-white">
+                            <i class="bi bi-people"></i> Khách hàng
+                        </a>
+                        <a href="{% url 'staff_list' %}" class="list-group-item list-group-item-action bg-dark text-white">
+                            <i class="bi bi-person-badge"></i> Nhân viên
+                        </a>
+                        
+                        <div class="text-white-50 px-3 py-2 small mt-3">PHÂN TÍCH AI</div>
+                        <a href="{% url 'revenue_forecast' %}" class="list-group-item list-group-item-action bg-dark text-white">
+                            <i class="bi bi-graph-up"></i> Dự đoán doanh thu
+                        </a>
+                        <a href="{% url 'stock_prediction' %}" class="list-group-item list-group-item-action bg-dark text-white">
+                            <i class="bi bi-box2"></i> Dự đoán tồn kho
+                        </a>
+                        <a href="{% url 'trends' %}" class="list-group-item list-group-item-action bg-dark text-white">
+                            <i class="bi bi-bar-chart-line"></i> Xu hướng
+                        </a>
+                    
+                    {% else %}
+                        <!-- CASHIER MENU (role_id = 2) -->
+                        {% if user_account.role_id == 2 %}
+                        <div class="text-white-50 px-3 py-2 small mt-3">THU NGÂN</div>
+                        <a href="{% url 'cashier-dashboard' %}" class="list-group-item list-group-item-action bg-dark text-white">
+                            <i class="bi bi-cash-register"></i> Bảng điều khiển
+                        </a>
+                        <a href="{% url 'create_order' %}" class="list-group-item list-group-item-action bg-dark text-white">
+                            <i class="bi bi-cart-plus"></i> Tạo đơn hàng
+                        </a>
+                        <a href="{% url 'order_list' %}" class="list-group-item list-group-item-action bg-dark text-white">
+                            <i class="bi bi-receipt"></i> Danh sách đơn hàng
+                        </a>
+                        {% endif %}
+                        
+                        <!-- BARISTA MENU (role_id = 3) -->
+                        {% if user_account.role_id == 3 %}
+                        <div class="text-white-50 px-3 py-2 small mt-3">BARISTA</div>
+                        <a href="{% url 'ingredient-tracking' %}" class="list-group-item list-group-item-action bg-dark text-white">
+                            <i class="bi bi-leaf"></i> Quản lý nguyên liệu
+                        </a>
+                        <a href="{% url 'ingredient_list' %}" class="list-group-item list-group-item-action bg-dark text-white">
+                            <i class="bi bi-box-seam"></i> Chi tiết nguyên liệu
+                        </a>
+                        {% endif %}
+                        
+                        <!-- PART-TIME MENU (role_id = 4) -->
+                        {% if user_account.role_id == 4 %}
+                        <div class="text-white-50 px-3 py-2 small mt-3">PART-TIME</div>
+                        <a href="{% url 'ingredient-tracking' %}" class="list-group-item list-group-item-action bg-dark text-white">
+                            <i class="bi bi-leaf"></i> Quản lý nguyên liệu
+                        </a>
+                        {% endif %}
+                    {% endif %}
+                
+                {% else %}
+                    <!-- NOT AUTHENTICATED -->
+                    <div class="p-4 text-center">
+                        <p class="text-white-50 mb-3">Vui lòng đăng nhập để sử dụng hệ thống</p>
+                        <a href="{% url 'login' %}" class="btn btn-primary w-100">
+                            <i class="bi bi-lock"></i> Đăng nhập
+                        </a>
+                    </div>
+                {% endif %}
             </div>
         </div>
 

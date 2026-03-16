@@ -10,6 +10,7 @@ class Order(models.Model):
     """
     STATUS_CHOICES = [
         ('pending', 'Chờ xử lý'),
+        ('preparing', 'Đang chế biến'),
         ('completed', 'Hoàn thành'),
     ]
 

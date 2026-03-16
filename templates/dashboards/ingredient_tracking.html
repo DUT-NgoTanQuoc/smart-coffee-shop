@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Theo Dõi Nguyên Liệu{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <h1 class="mb-4">
+        <i class="fas fa-leaf"></i> Theo Dõi Nguyên Liệu
+    </h1>
+    
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h3 class="text-success">{{ ingredients|length }}</h3>
+                    <small class="text-muted">Tổng nguyên liệu</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h3 class="text-warning">{{ low_stock_count }}</h3>
+                    <small class="text-muted">Sắp hết</small>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Alert for Low Stock -->
+    {% if low_stock %}
+    <div class="alert alert-danger alert-dismissible fade show mb-4" role="alert">
+        <h4 class="alert-heading">🚨 Nguyên Liệu Sắp Hết!</h4>
+        <p>Vui lòng đặt hàng ngay các nguyên liệu sau:</p>
+        <ul class="mb-0">
+            {% for ing in low_stock %}
+            <li>
+                <strong>{{ ing.name }}</strong>: 
+                <span class="badge bg-danger">{{ ing.quantity }}/{{ ing.min_quantity }} {{ ing.unit }}</span>
+            </li>
+            {% endfor %}
+        </ul>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+    {% endif %}
+    
+    <!-- Ingredients Table -->
+    <div class="card">
+        <div class="card-header">
+            <h5 class="mb-0">Danh Sách Nguyên Liệu</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Tên Nguyên Liệu</th>
+                            <th class="text-center">Số Lượng Có</th>
+                            <th class="text-center">Tối Thiểu</th>
+                            <th class="text-center">Tối Đa</th>
+                            <th class="text-center">Trạng Thái</th>
+                            <th class="text-center">% Dự Phòng</th>
+                            <th>Hành Động</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for ing in ingredients %}
+                        <tr>
+                            <td>
+                                <strong>{{ ing.name }}</strong>
+                                {% if ing.description %}
+                                <br><small class="text-muted">{{ ing.description }}</small>
+                                {% endif %}
+                            </td>
+                            <td class="text-center">
+                                <span class="badge bg-info">{{ ing.quantity|floatformat:1 }} {{ ing.unit }}</span>
+                            </td>
+                            <td class="text-center">
+                                {{ ing.min_quantity|floatformat:1 }} {{ ing.unit }}
+                            </td>
+                            <td class="text-center">
+                                {{ ing.max_quantity|floatformat:1 }} {{ ing.unit }}
+                            </td>
+                            <td class="text-center">
+                                {% if ing.quantity >= ing.max_quantity %}
+                                <span class="badge bg-success">✓ Đầy</span>
+                                {% elif ing.quantity >= ing.min_quantity %}
+                                <span class="badge bg-info">✓ Bình Thường</span>
+                                {% elif ing.quantity > 0 %}
+                                <span class="badge bg-warning text-dark">⚠️ Cần Dự Tính</span>
+                                {% else %}
+                                <span class="badge bg-danger">✗ HẾT</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-center">
+                                {% if ing.max_quantity > 0 %}
+                                {% widthratio ing.quantity ing.max_quantity 100 as percentage %}
+                                <div class="progress" style="height: 20px;">
+                                    <div class="progress-bar {% if percentage >= 75 %}bg-success{% elif percentage >= 50 %}bg-info{% elif percentage >= 25 %}bg-warning{% else %}bg-danger{% endif %}" role="progressbar" style="width: {{ percentage }}%;" aria-valuenow="{{ percentage }}" aria-valuemin="0" aria-valuemax="100">
+                                        {{ percentage }}%
+                                    </div>
+                                </div>
+                                {% else %}
+                                <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <a href="{% url 'ingredient_update' ing.id %}" class="btn btn-sm btn-primary">
+                                    <i class="fas fa-edit"></i> Sửa
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Footer -->
+    <div class="mt-4">
+        <a href="{% url 'barista-dashboard' %}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i> Quay Lại
+        </a>
+        <a href="{% url 'ingredient_list' %}" class="btn btn-outline-primary">
+            <i class="fas fa-list"></i> Quản Lý Nguyên Liệu
+        </a>
+        <button onclick="location.reload()" class="btn btn-outline-secondary">
+            <i class="fas fa-sync"></i> Làm Mới
+        </button>
+    </div>
+</div>
+
+<style>
+@media print {
+    .btn, .btn-group, .alert-dismissible { display: none; }
+    .table { font-size: 0.9em; }
+}
+</style>
+{% endblock %}

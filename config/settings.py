@@ -77,6 +77,7 @@ TEMPLATES = [
                 'django.template.context_processors.media',
                 'django.template.context_processors.static',
                 'apps.staff.context_processors.staff_context',
+                'apps.core.context_processors.user_account',
             ],
         },
     },
