@@ -76,6 +76,7 @@ TEMPLATES = [
                 'django.contrib.messages.context_processors.messages',
                 'django.template.context_processors.media',
                 'django.template.context_processors.static',
+                'apps.staff.context_processors.staff_context',
             ],
         },
     },
@@ -90,7 +91,7 @@ WSGI_APPLICATION = 'config.wsgi.application'
 # Use SQLite for development by default. To force PostgreSQL set USE_SQLITE=False
 # in your environment (e.g. in a .env file). This keeps local setup simple while
 # preserving production Postgres configuration.
-USE_SQLITE = config('USE_SQLITE', default=True, cast=bool)
+USE_SQLITE = config('USE_SQLITE', default=False, cast=bool)
 
 if USE_SQLITE:
     DATABASES = {
@@ -108,6 +109,10 @@ else:
             'PASSWORD': config('DATABASE_PASSWORD', default='password'),
             'HOST': config('DATABASE_HOST', default='localhost'),
             'PORT': config('DATABASE_PORT', default='5432'),
+            # Đóng kết nối sau mỗi request để tránh "too many clients" trong môi trường dev
+            'CONN_MAX_AGE': 0,
+            # Kiểm tra kết nối trước khi dùng lại (an toàn với pooling/pgbouncer nếu có)
+            'CONN_HEALTH_CHECKS': True,
         }
     }
 

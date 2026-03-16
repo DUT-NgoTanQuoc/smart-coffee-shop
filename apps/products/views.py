@@ -78,6 +78,7 @@ def product_create(request):
     categories = Category.objects.all()
     
     context = {
+        'product': None,  # Truyền product=None để template biết đây là tạo mới
         'categories': categories,
     }
     

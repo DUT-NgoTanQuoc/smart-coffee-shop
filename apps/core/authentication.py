@@ -36,23 +36,48 @@ class CustomAccountBackend(BaseBackend):
             row = cursor.fetchone()
             
             if row:
-                account_id, username, password_hash, is_active, is_locked, failed_attempts = row
+                account_id, db_username, password_hash, is_active, is_locked, failed_attempts = row
                 
                 # Remove $md5$ prefix if exists
                 clean_hash = password_hash.replace('$md5$', '') if password_hash.startswith('$md5$') else password_hash
                 
                 if not is_locked and hashlib.md5(password.encode()).hexdigest() == clean_hash:
-                    # Create user-like object
-                    user = type('AccountUser', (), {
-                        'id': account_id,
-                        'username': username,
-                        'is_authenticated': True,
-                        'is_active': is_active,
-                        'is_staff': username == 'quan_ly',  # Manager is staff
-                        'is_superuser': False,
-                        'backend': self.__class__.__name__,
-                        '_meta': type('Meta', (), {'pk': lambda self: account_id})(),
-                    })()
+                    # Create user-like object with proper _meta structure
+                    class AccountUser:
+                        def __init__(self, account_id, username, is_active, is_staff, is_superuser):
+                            self.id = account_id
+                            self.username = username
+                            self.is_authenticated = True
+                            self.is_active = is_active
+                            self.is_staff = is_staff
+                            self.is_superuser = is_superuser
+                            self.backend = self.__class__.__module__ + '.' + self.__class__.__name__
+                            
+                            # Create proper _meta.pk structure for Django session
+                            class PK:
+                                def value_to_string(self, obj):
+                                    return str(obj.id)
+                            
+                            class Meta:
+                                pk = PK()
+                            
+                            self._meta = Meta()
+                        
+                        def save(self, *args, **kwargs):
+                            # No-op save for Django auth compatibility
+                            pass
+                        
+                        def delete(self, *args, **kwargs):
+                            # No-op delete for Django auth compatibility
+                            pass
+                    
+                    user = AccountUser(
+                        account_id=account_id,
+                        username=db_username,
+                        is_active=is_active,
+                        is_staff=db_username == 'quan_ly',  # Manager is staff
+                        is_superuser=False
+                    )
                     
                     # Update last_login (optional)
                     try:
@@ -92,23 +117,56 @@ class CustomAccountBackend(BaseBackend):
             row = cursor.fetchone()
             
             if row:
-                account_id, username, _, is_active, is_locked, _ = row
+                account_id, db_username, _, is_active, is_locked, _ = row
                 
-                # Create complete mock user
-                user = type('AccountUser', (), {
-                    'id': account_id,
-                    'username': username,
-                    'is_authenticated': True,
-                    'is_active': is_active,
-                    'is_staff': username == 'quan_ly',
-                    'is_superuser': username == 'admin' or username == 'quan_ly',
-                    'backend': self.__class__.__name__,
-                    'has_perm': lambda self, perm=None, obj=None: self.is_superuser,
-                    'has_perms': lambda self, perm_list, obj=None: all(self.has_perm(perm, obj) for perm in perm_list),
-                    'has_module_perms': lambda self, app_label: self.is_superuser,
-                    'get_username': lambda self: self.username,
-                    '_meta': type('Meta', (), {'pk': property(lambda self: user_id)})(),
-                })()
+                # Create complete mock user with proper _meta structure
+                class AccountUser:
+                    def __init__(self, account_id, username, is_active, is_staff, is_superuser):
+                        self.id = account_id
+                        self.username = username
+                        self.is_authenticated = True
+                        self.is_active = is_active
+                        self.is_staff = is_staff
+                        self.is_superuser = is_superuser
+                        self.backend = 'apps.core.authentication.CustomAccountBackend'
+                        
+                        # Create proper _meta.pk structure
+                        class PK:
+                            def value_to_string(self, obj):
+                                return str(obj.id)
+                        
+                        class Meta:
+                            pk = PK()
+                        
+                        self._meta = Meta()
+                    
+                    def has_perm(self, perm=None, obj=None):
+                        return self.is_superuser
+                    
+                    def has_perms(self, perm_list, obj=None):
+                        return all(self.has_perm(perm, obj) for perm in perm_list)
+                    
+                    def has_module_perms(self, app_label):
+                        return self.is_superuser
+                    
+                    def get_username(self):
+                        return self.username
+                    
+                    def save(self, *args, **kwargs):
+                        # No-op save for Django auth compatibility
+                        pass
+                    
+                    def delete(self, *args, **kwargs):
+                        # No-op delete for Django auth compatibility
+                        pass
+                
+                user = AccountUser(
+                    account_id=account_id,
+                    username=db_username,
+                    is_active=is_active,
+                    is_staff=db_username == 'quan_ly',
+                    is_superuser=db_username == 'quan_ly'
+                )
                 return user
         
         return None

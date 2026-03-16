@@ -27,7 +27,7 @@
                     <div class="mb-3">
                         <label class="form-label">Tên sản phẩm <span class="text-danger">*</span></label>
                         <input type="text" name="name" class="form-control" 
-                               value="{{ product.name|default:'' }}" required>
+                               value="{% if product %}{{ product.name }}{% endif %}" required>
                     </div>
                     
                     <div class="mb-3">
@@ -45,7 +45,7 @@
                     
                     <div class="mb-3">
                         <label class="form-label">Mô tả</label>
-                        <textarea name="description" class="form-control" rows="3">{{ product.description|default:'' }}</textarea>
+                        <textarea name="description" class="form-control" rows="3">{% if product %}{{ product.description }}{% endif %}</textarea>
                     </div>
                     
                     <div class="mb-3">
@@ -78,10 +78,8 @@
                     <div class="mb-3">
                         <label class="form-label">Giá size Small (S)</label>
                         <div class="input-group">
-                            {% with product.price_small|default_if_none:product.price_medium|default_if_none:product.price_large as price_s %}
                             <input type="number" name="price_small" class="form-control" 
-                                   value="{{ price_s|unlocalize|default:'' }}" min="0" step="100">
-                            {% endwith %}
+                                   value="{% if product and product.price_small %}{{ product.price_small|unlocalize }}{% endif %}" min="0" step="100">
                             <span class="input-group-text">đ</span>
                         </div>
                     </div>
@@ -89,10 +87,8 @@
                     <div class="mb-3">
                         <label class="form-label">Giá size Medium (M)</label>
                         <div class="input-group">
-                            {% with product.price_medium|default_if_none:product.price_small|default_if_none:product.price_large as price_m %}
                             <input type="number" name="price_medium" class="form-control" 
-                                   value="{{ price_m|unlocalize|default:'' }}" min="0" step="100">
-                            {% endwith %}
+                                   value="{% if product and product.price_medium %}{{ product.price_medium|unlocalize }}{% endif %}" min="0" step="100">
                             <span class="input-group-text">đ</span>
                         </div>
                     </div>
@@ -100,10 +96,8 @@
                     <div class="mb-3">
                         <label class="form-label">Giá size Large (L)</label>
                         <div class="input-group">
-                            {% with product.price_large|default_if_none:product.price_medium|default_if_none:product.price_small as price_l %}
                             <input type="number" name="price_large" class="form-control" 
-                                   value="{{ price_l|unlocalize|default:'' }}" min="0" step="100">
-                            {% endwith %}
+                                   value="{% if product and product.price_large %}{{ product.price_large|unlocalize }}{% endif %}" min="0" step="100">
                             <span class="input-group-text">đ</span>
                         </div>
                     </div>

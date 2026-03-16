@@ -6,6 +6,9 @@
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h2><i class="bi bi-person-badge"></i> Quản lý nhân viên</h2>
+    <a href="{% url 'staff_create' %}" class="btn btn-primary">
+        <i class="bi bi-plus-circle"></i> Thêm nhân viên
+    </a>
 </div>
 
 <!-- Filters -->
@@ -87,9 +90,15 @@
                             <span class="badge bg-secondary">Đã nghỉ</span>
                             {% endif %}
                         </td>
-                        <td>
+                        <td class="d-flex gap-1">
                             <a href="{% url 'staff_detail' staff.id %}" class="btn btn-sm btn-info text-white">
                                 <i class="bi bi-eye"></i>
+                            </a>
+                            <a href="{% url 'staff_update' staff.id %}" class="btn btn-sm btn-warning text-white">
+                                <i class="bi bi-pencil"></i>
+                            </a>
+                            <a href="{% url 'staff_delete' staff.id %}" class="btn btn-sm btn-danger">
+                                <i class="bi bi-trash"></i>
                             </a>
                         </td>
                     </tr>

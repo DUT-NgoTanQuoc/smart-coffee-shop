@@ -1,0 +1,15 @@
+{% extends 'base.html' %}
+{% block title %}Xóa nhân viên{% endblock %}
+{% block content %}
+<div class="card shadow">
+    <div class="card-body">
+        <h4 class="text-danger"><i class="bi bi-exclamation-triangle"></i> Xác nhận xóa</h4>
+        <p>Bạn có chắc muốn xóa nhân viên <strong>{{ staff.name }}</strong>?</p>
+        <form method="post">
+            {% csrf_token %}
+            <a href="{% url 'staff_list' %}" class="btn btn-secondary">Hủy</a>
+            <button type="submit" class="btn btn-danger">Xóa</button>
+        </form>
+    </div>
+</div>
+{% endblock %}

@@ -11,6 +11,7 @@ from .models import Order, OrderItem, Payment
 from apps.products.models import Product, Customization
 from apps.customers.models import Customer
 from apps.staff.models import Staff
+from apps.core.utils import get_current_staff
 
 
 @login_required
@@ -33,19 +34,9 @@ def create_order(request):
                 if customer_id:
                     order.customer = Customer.objects.get(id=customer_id)
                 
-                # Gán nhân viên (dựa trên email hoặc username/phone); bỏ qua nếu không khớp
+                # Gán nhân viên (dựa trên accounts table hoặc email/phone)
                 try:
-                    from django.db import models
-
-                    user_email = getattr(request.user, 'email', None)
-                    user_key = request.user.username
-
-                    staff = Staff.objects.filter(
-                        models.Q(email__iexact=user_email) |
-                        models.Q(email__iexact=user_key) |
-                        models.Q(phone__iexact=user_key)
-                    ).first()
-
+                    staff = get_current_staff(request.user)
                     if staff:
                         order.staff = staff
                 except Exception:

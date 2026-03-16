@@ -41,22 +41,21 @@
                     
                     <div class="mb-3">
                         <label class="form-label">Tên nguyên liệu <span class="text-danger">*</span></label>
-                        <input type="text" name="name" class="form-control" 
-                               value="{{ form.name.value|default:ingredient.name|default:'' }}" required>
+                        {{ form.name }}
+                        {% if form.name.errors %}<div class="text-danger small">{{ form.name.errors.0 }}</div>{% endif %}
                     </div>
                     
                     <div class="mb-3">
                         <label class="form-label">Đơn vị <span class="text-danger">*</span></label>
-                        <input type="text" name="unit" class="form-control" 
-                               value="{{ form.unit.value|default:ingredient.unit|default:'' }}" 
-                               placeholder="g, ml, cái,..." required>
-                        <small class="text-muted">Ví dụ: g, ml, cái, kg, lít</small>
+                        {{ form.unit }}
+                        <small class="text-muted d-block">Ví dụ: g, ml, cái, kg, lít</small>
+                        {% if form.unit.errors %}<div class="text-danger small">{{ form.unit.errors.0 }}</div>{% endif %}
                     </div>
                     
                     <div class="mb-3">
                         <label class="form-label">Nhà cung cấp</label>
-                        <input type="text" name="supplier" class="form-control" 
-                               value="{{ form.supplier.value|default:ingredient.supplier|default:'' }}">
+                        {{ form.supplier }}
+                        {% if form.supplier.errors %}<div class="text-danger small">{{ form.supplier.errors.0 }}</div>{% endif %}
                     </div>
                 </div>
                 
@@ -65,30 +64,21 @@
                     
                     <div class="mb-3">
                         <label class="form-label">Số lượng hiện tại</label>
-                        <div class="input-group">
-                <input type="number" name="quantity" class="form-control" 
-                    value="{{ form.quantity.value|default_if_none:ingredient.quantity|default:'0'|unlocalize }}" min="0" step="0.01">
-                <span class="input-group-text">{{ form.unit.value|default:ingredient.unit|default:'đơn vị' }}</span>
-                        </div>
+                        {{ form.quantity }}
+                        {% if form.quantity.errors %}<div class="text-danger small">{{ form.quantity.errors.0 }}</div>{% endif %}
                     </div>
                     
                     <div class="mb-3">
                         <label class="form-label">Số lượng tối thiểu (cảnh báo)</label>
-                        <div class="input-group">
-                <input type="number" name="min_quantity" class="form-control" 
-                    value="{{ form.min_quantity.value|default_if_none:ingredient.min_quantity|default:'0'|unlocalize }}" min="0" step="0.01">
-                <span class="input-group-text">{{ form.unit.value|default:ingredient.unit|default:'đơn vị' }}</span>
-                        </div>
-                        <small class="text-muted">Khi tồn kho <= số này sẽ hiển thị cảnh báo</small>
+                        {{ form.min_quantity }}
+                        <small class="text-muted d-block">Khi tồn kho <= số này sẽ hiển thị cảnh báo</small>
+                        {% if form.min_quantity.errors %}<div class="text-danger small">{{ form.min_quantity.errors.0 }}</div>{% endif %}
                     </div>
                     
                     <div class="mb-3">
                         <label class="form-label">Giá mỗi đơn vị</label>
-                        <div class="input-group">
-                <input type="number" name="price_per_unit" class="form-control" 
-                    value="{{ form.price_per_unit.value|default_if_none:ingredient.price_per_unit|default:''|unlocalize }}" min="0" step="100">
-                            <span class="input-group-text">đ</span>
-                        </div>
+                        {{ form.price_per_unit }}
+                        {% if form.price_per_unit.errors %}<div class="text-danger small">{{ form.price_per_unit.errors.0 }}</div>{% endif %}
                     </div>
                 </div>
             </div>
