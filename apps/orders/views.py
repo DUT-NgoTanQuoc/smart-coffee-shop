@@ -45,12 +45,25 @@ def create_order(request):
                 
                 # Tính tổng tiền
                 items_data = data.get('items', [])
+                print(f"[CREATE_ORDER] items_data received: {items_data}, count: {len(items_data)}")
+                
+                # FAIL-FAST: Không cho phép tạo đơn không có sản phẩm
+                if not items_data or len(items_data) == 0:
+                    raise ValueError('Đơn hàng phải có ít nhất 1 sản phẩm')
+                
                 total = Decimal('0')
+                normalized_items = []
                 
                 for item_data in items_data:
-                    product = Product.objects.get(id=item_data['product_id'])
-                    size = item_data['size']
-                    quantity = item_data['quantity']
+                    product_id = item_data.get('product_id', item_data.get('productId'))
+                    if not product_id:
+                        raise ValueError('Thiếu product_id trong dữ liệu sản phẩm')
+
+                    product = Product.objects.get(id=product_id)
+                    size = item_data.get('size', 'N/A')
+                    quantity = int(item_data.get('quantity', item_data.get('qty', 1)))
+                    if quantity <= 0:
+                        raise ValueError('Số lượng sản phẩm phải lớn hơn 0')
                     
                     # Lấy giá theo size
                     price = product.get_price(size)
@@ -65,6 +78,13 @@ def create_order(request):
                     # Tổng giá item
                     item_total = (price + custom_price) * quantity
                     total += item_total
+
+                    normalized_items.append({
+                        'product': product,
+                        'size': size,
+                        'quantity': quantity,
+                        'customizations': customizations,
+                    })
                 
                 # Áp dụng giảm giá
                 discount = Decimal(data.get('discount', 0))
@@ -79,11 +99,11 @@ def create_order(request):
                 print(f"[CREATE_ORDER] Order created: {order.id}, items: {len(items_data)}")
                 
                 # Tạo order items
-                for item_data in items_data:
-                    print(f"[CREATE_ORDER] Processing item: {item_data}")
-                    product = Product.objects.get(id=item_data['product_id'])
+                for item_data in normalized_items:
+                    product = item_data['product']
                     size = item_data['size']
                     quantity = item_data['quantity']
+                    print(f"[CREATE_ORDER] Processing item: product={product.id}, size={size}, qty={quantity}")
                     price = product.get_price(size)
                     
                     # Lấy customizations
@@ -149,12 +169,16 @@ def create_order(request):
 @login_required
 def order_list(request):
     """Danh sách đơn hàng"""
+    # Mặc định sắp xếp từ mới đến cũ (newest first)
     orders = Order.objects.all().select_related('customer', 'staff').order_by('-order_date')
     
     # Lọc theo status nếu có
     status = request.GET.get('status')
     if status:
         orders = orders.filter(status=status)
+    
+    # Đảm bảo sắp xếp sau khi filter
+    orders = orders.order_by('-order_date')
     
     context = {
         'orders': orders,
@@ -166,10 +190,15 @@ def order_list(request):
 @login_required
 def order_detail(request, order_id):
     """Chi tiết đơn hàng"""
-    order = get_object_or_404(Order, id=order_id)
+    order = get_object_or_404(
+        Order.objects.select_related('customer', 'staff').prefetch_related('items__product', 'payments'),
+        id=order_id
+    )
+    order_items = OrderItem.objects.filter(order_id=order_id).select_related('product').order_by('id')
     
     context = {
         'order': order,
+        'order_items': order_items,
     }
     
     return render(request, 'orders/order_detail.html', context)
@@ -213,13 +242,33 @@ def update_order_status(request, order_id):
         order = Order.objects.get(id=order_id)
         
         # Check permission - only barista/admin can update
-        if not request.user.is_superuser:
+        is_authorized = False
+        
+        if request.user.is_superuser:
+            is_authorized = True
+        else:
+            # Try multiple ways to check if user is barista
             try:
-                staff = get_current_staff(request.user)
-                if not staff or staff.role not in ['barista', 'admin']:
-                    return JsonResponse({'success': False, 'message': 'Unauthorized'}, status=403)
+                # Method 1: Check Account model
+                from apps.core.models import Account
+                account = Account.objects.get(username=request.user.username)
+                if account.role_id in [3, 1]:  # 3=barista, 1=admin
+                    is_authorized = True
             except:
-                return JsonResponse({'success': False, 'message': 'Unauthorized'}, status=403)
+                pass
+            
+            # Method 2: Check Staff model
+            if not is_authorized:
+                try:
+                    staff = get_current_staff(request.user)
+                    if staff and staff.role in ['barista', 'admin']:
+                        is_authorized = True
+                except:
+                    pass
+        
+        if not is_authorized:
+            print(f"[UPDATE_ORDER_STATUS] Unauthorized access attempt by {request.user.username}")
+            return JsonResponse({'success': False, 'message': 'Unauthorized'}, status=403)
         
         data = json.loads(request.body)
         new_status = data.get('status')
@@ -231,6 +280,8 @@ def update_order_status(request, order_id):
         if new_status == 'completed':
             order.completed_at = timezone.now()
         order.save()
+        
+        print(f"[UPDATE_ORDER_STATUS] Order {order.id} updated to {new_status} by {request.user.username}")
         
         return JsonResponse({
             'success': True,

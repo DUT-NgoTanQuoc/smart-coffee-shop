@@ -229,17 +229,26 @@
             {% if pending_orders %}
             <div class="order-list">
                 {% for order in pending_orders %}
-                <div class="order-badge" onclick="selectOrder({{ order.id }}, this)">
-                    <div>
-                        <div class="order-code">ORD{{ order.order_number }}</div>
+                <div class="order-badge" style="display: flex; justify-content: space-between; align-items: center;">
+                    <div style="flex: 1; cursor: pointer;" onclick="selectOrder({{ order.id }}, this.parentElement)">
+                        <div class="order-code">
+                            <a href="{% url 'order_detail' order.id %}" target="_blank" style="color: inherit; text-decoration: none;">
+                                ORD{{ order.order_number }} 🔗
+                            </a>
+                        </div>
                         <span class="order-time-small">{{ order.order_date|date:"H:i:s" }}</span>
                         {% if order.customer %}
                         <span class="order-time-small">👤 {{ order.customer.name }}</span>
                         {% endif %}
                     </div>
-                    <button class="complete-btn" onclick="event.stopPropagation(); completeOrder({{ order.id }})">
-                        ✓ Hoàn thành
-                    </button>
+                    <div style="display: flex; gap: 5px;">
+                        <button class="complete-btn" onclick="event.stopPropagation(); selectOrder({{ order.id }}, this.parentElement.parentElement); return false;" style="background: #17a2b8; padding: 6px 10px;">
+                            👀 Xem món
+                        </button>
+                        <button class="complete-btn" onclick="event.stopPropagation(); completeOrder({{ order.id }}); return false;">
+                            ✓ Hoàn thành
+                        </button>
+                    </div>
                 </div>
                 {% endfor %}
             </div>
@@ -292,7 +301,11 @@
             <div class="completed-list">
                 {% for order in completed_orders %}
                 <div class="completed-badge">
-                    <div class="completed-code">ORD{{ order.order_number }}</div>
+                    <div class="completed-code">
+                        <a href="{% url 'order_detail' order.id %}" target="_blank" style="color: inherit; text-decoration: none;">
+                            ORD{{ order.order_number }} 🔗
+                        </a>
+                    </div>
                     <div class="completed-time">{{ order.order_date|date:"H:i:s" }}</div>
                     {% if order.customer %}
                     <div class="completed-time">{{ order.customer.name }}</div>
@@ -314,76 +327,67 @@
 let selectedOrderId = null;
 let selectedDishId = null;
 
-// Dữ liệu tất cả đơn hàng + món + công thức từ database
-const ordersData = {
-    {% for order in pending_orders %}
-    {{ order.id }}: {
-        id: {{ order.id }},
-        number: "{{ order.order_number }}",
-        items: [
-            {% for item in order.items.all %}
-            {
-                id: {{ item.id }},
-                product_id: {{ item.product.id }},
-                name: "{{ item.product.name|escapejs }}",
-                size: "{{ item.size|escapejs }}",
-                quantity: {{ item.quantity }},
-                recipes: [
-                    {% for recipe in item.product.recipe_set.all %}
-                    {
-                        name: "{{ recipe.name|escapejs }}",
-                        ingredients: [
-                            {% for ingredient in recipe.recipeingredient_set.all %}
-                            {
-                                name: "{{ ingredient.ingredient.name|escapejs }}",
-                                quantity: {{ ingredient.quantity }},
-                                unit: "{{ ingredient.ingredient.unit|default:'pcs'|escapejs }}"
-                            }{{ forloop.last|yesno:",," }}
-                            {% endfor %}
-                        ]
-                    }{{ forloop.last|yesno:",," }}
-                    {% endfor %}
-                ]
-            }{{ forloop.last|yesno:",," }}
-            {% endfor %}
-        ]
-    }{{ forloop.last|yesno:",," }}
-    {% endfor %}
-};
+// Dữ liệu tất cả đơn hàng + món + công thức từ server (JSON)
+const ordersData = JSON.parse('{{ orders_data_json|escapejs }}');
 
-console.log('Orders Data Loaded:', ordersData);
+console.log('=== BARISTA DASHBOARD LOADED ===');
+console.log('Orders Data:', ordersData);
+console.log('Total orders loaded:', Object.keys(ordersData).length);
+Object.keys(ordersData).forEach(orderId => {
+    const order = ordersData[orderId];
+    console.log(`Order ${orderId} (${order.number}): ${order.items.length} items`);
+    order.items.forEach(item => {
+        console.log(`  - ${item.name} (${item.size}) x${item.quantity}, recipes: ${item.recipes.length}`);
+    });
+});
 
 function selectOrder(orderId, element) {
+    console.log('[BARISTA] selectOrder called with orderId:', orderId, 'element:', element);
+    
+    // Lấy orderId từ string nếu cần
+    orderId = parseInt(orderId);
     selectedOrderId = orderId;
     selectedDishId = null;
     
-    console.log('Selected Order ID:', orderId, 'Element:', element);
-    console.log('Order Data:', ordersData[orderId]);
+    console.log('=== SELECT ORDER ===');
+    console.log('Order ID (parsed):', orderId);
+    console.log('Available orders:', Object.keys(ordersData));
+    console.log('Selected order data:', ordersData[orderId]);
     
     // Highlight selected order
     document.querySelectorAll('.order-badge').forEach(el => {
         el.classList.remove('selected');
     });
-    element?.classList.add('selected');
+    
+    // Tìm order-badge cha của element
+    let orderBadge = element;
+    if (element && element.classList && !element.classList.contains('order-badge')) {
+        orderBadge = element.closest('.order-badge');
+    }
+    if (orderBadge) {
+        orderBadge.classList.add('selected');
+    }
     
     // Load dishes từ dữ liệu
     const order = ordersData[orderId];
     if (!order) {
-        console.error('Order not found in ordersData!', orderId);
-        document.getElementById('dishList').innerHTML = '<div class="empty-state">Không tìm thấy đơn</div>';
+        console.error('Order not found! ID:', orderId, 'Available:', Object.keys(ordersData));
+        document.getElementById('dishList').innerHTML = '<div class="empty-state" style="text-align: center;"><p style="color: red;">❌ Không tìm thấy dữ liệu đơn #' + orderId + '</p></div>';
         return;
     }
     
-    console.log('Order items:', order.items);
+    console.log('Order found:', order.number, 'Items count:', order.items.length);
     
     let html = '';
     if (order.items.length === 0) {
-        html = '<div class="empty-state">Không có món ăn trong đơn này</div>';
+        console.warn('No items in order:', orderId);
+        html = '<div class="empty-state"><p>⚠️ Đơn này không có sản phẩm</p></div>';
     } else {
         html = '<div class="dish-list">';
-        order.items.forEach(item => {
+        order.items.forEach((item, idx) => {
+            console.log(`  [Item ${idx + 1}]:`, item.name, `x${item.quantity}, recipes:`, item.recipes.length);
             html += `
-                <div class="dish-item" onclick="selectDish(${item.product_id}, '${item.name}', '${item.size}', this)">
+                <div class="dish-item" onclick="selectDish(${item.product_id}, '${item.name.replace(/'/g, "\\'")}', '${item.size}', this)">
                     <div class="dish-name">☕ ${item.name}</div>
                     <div class="dish-size">(${item.size}) x${item.quantity}</div>
                 </div>
@@ -392,12 +396,26 @@ function selectOrder(orderId, element) {
         html += '</div>';
     }
     
-    document.getElementById('dishList').innerHTML = html;
-    document.getElementById('recipeDetail').innerHTML = '<div class="empty-state"><div class="empty-icon">🧪</div><p>Chọn món để xem công thức</p></div>';
+    console.log('Setting dishList innerHTML, length:', html.length);
+    const dishListEl = document.getElementById('dishList');
+    if (dishListEl) {
+        dishListEl.innerHTML = html;
+        console.log('dishList updated successfully');
+    } else {
+        console.error('dishList element not found!');
+    }
+    
+    const recipeEl = document.getElementById('recipeDetail');
+    if (recipeEl) {
+        recipeEl.innerHTML = '<div class="empty-state"><div class="empty-icon">🧪</div><p>Chọn món để xem công thức</p></div>';
+    }
 }
 
 function selectDish(productId, dishName, size, element) {
     selectedDishId = productId;
+    
+    console.log('=== SELECT DISH ===');
+    console.log('Dish ID:', productId, 'Name:', dishName);
     
     // Highlight selected dish
     document.querySelectorAll('.dish-item').forEach(el => {
@@ -407,10 +425,19 @@ function selectDish(productId, dishName, size, element) {
     
     // Load recipe từ dữ liệu
     const order = ordersData[selectedOrderId];
-    if (!order) return;
+    if (!order) {
+        console.error('Order not found!');
+        return;
+    }
     
     const item = order.items.find(i => i.product_id === productId);
-    if (!item) return;
+    if (!item) {
+        console.error('Item not found!', productId);
+        return;
+    }
+    
+    console.log('Item found:', item);
+    console.log('Recipes count:', item.recipes.length);
     
     if (!item.recipes || item.recipes.length === 0) {
         document.getElementById('recipeDetail').innerHTML = `
@@ -422,29 +449,34 @@ function selectDish(productId, dishName, size, element) {
         return;
     }
     
-    let html = `<h5>${dishName} (${size})</h5><hr>`;
+    let html = `<h4 style="margin-bottom: 15px;">☕ ${dishName}</h4>`;
+    html += `<p style="margin-bottom: 15px; color: #666;"><strong>Size:</strong> ${size}</p>`;
+    html += `<hr>`;
+    
     item.recipes.forEach(recipe => {
-        html += `<div class="recipe-header">${recipe.name}</div>`;
-        if (recipe.ingredients.length === 0) {
-            html += '<p class="text-muted">Chưa có nguyên liệu</p>';
-        } else {
-            html += '<div class="recipe-details">';
-            recipe.ingredients.forEach(ing => {
-                html += `
-                    <div class="ingredient-item">
-                        <span class="ingredient-name">${ing.name}</span>
-                        <span class="ingredient-qty">${ing.quantity} ${ing.unit}</span>
-                    </div>
-                `;
-            });
-            html += '</div>';
-        }
+        const qty = recipe['quantity_' + size.toLowerCase()] || recipe.quantity_small || 0;
+        html += `
+            <div style="margin-bottom: 15px; padding: 12px; background: #f9f9f9; border-left: 4px solid #667eea; border-radius: 4px;">
+                <div style="font-weight: 600; color: #333; margin-bottom: 8px;">
+                    📦 ${recipe.ingredient_name}
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span style="color: #666;">Số lượng cần:</span>
+                    <span style="font-size: 18px; font-weight: bold; color: #667eea;">
+                        ${qty} ${recipe.unit}
+                    </span>
+                </div>
+            </div>
+        `;
     });
     
+    console.log('Rendering recipe HTML');
     document.getElementById('recipeDetail').innerHTML = html;
 }
 
 function completeOrder(orderId) {
+    console.log('[COMPLETE] Starting completeOrder for orderId:', orderId);
+    
     if (!confirm('Xác nhận đơn này đã hoàn thành?')) return;
     
     fetch(`/orders/api/${orderId}/status/`, {
@@ -457,14 +489,47 @@ function completeOrder(orderId) {
     })
     .then(r => r.json())
     .then(data => {
+        console.log('[COMPLETE] Response:', data);
         if (data.success) {
+            console.log('[COMPLETE] Success! Order marked as completed');
+            
+            // Tìm order badge và xóa nó khỏi ô 1
+            const orderBadge = document.querySelector(`[onclick*="selectOrder(${orderId}"]`)?.closest('.order-badge');
+            if (orderBadge) {
+                console.log('[COMPLETE] Removing order badge from pending list');
+                orderBadge.remove();
+            }
+            
+            // Clear ô 2 và 3
+            document.getElementById('dishList').innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-icon">📋</div>
+                    <p>Chọn đơn hàng để xem món ăn</p>
+                </div>
+            `;
+            document.getElementById('recipeDetail').innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-icon">🧪</div>
+                    <p>Chọn món để xem công thức</p>
+                </div>
+            `;
+            
             alert('✅ Đơn hàng đã hoàn thành!');
-            location.reload();
+            
+            // Reload trang sau 1 giây để cập nhật ô 4
+            setTimeout(() => {
+                console.log('[COMPLETE] Reloading page to update completed orders list');
+                location.reload();
+            }, 1000);
         } else {
+            console.error('[COMPLETE] Error:', data.message);
             alert('❌ Lỗi: ' + data.message);
         }
     })
-    .catch(err => alert('❌ Lỗi kết nối'));
+    .catch(err => {
+        console.error('[COMPLETE] Fetch error:', err);
+        alert('❌ Lỗi kết nối: ' + err.message);
+    });
 }
 
 function getCookie(name) {

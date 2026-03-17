@@ -28,11 +28,6 @@
             </div>
             <div class="list-group list-group-flush">
                 {% if user.is_authenticated %}
-                    <!-- Home -->
-                    <a href="{% url 'dashboard' %}" class="list-group-item list-group-item-action bg-dark text-white">
-                        <i class="bi bi-house-fill"></i> Trang chủ
-                    </a>
-                    
                     {% if user.is_superuser %}
                         <!-- ADMIN MENU -->
                         <div class="text-white-50 px-3 py-2 small mt-3">DASHBOARDS</div>
@@ -72,9 +67,6 @@
                         <!-- CASHIER MENU (role_id = 2) -->
                         {% if user_account.role_id == 2 %}
                         <div class="text-white-50 px-3 py-2 small mt-3">THU NGÂN</div>
-                        <a href="{% url 'cashier-dashboard' %}" class="list-group-item list-group-item-action bg-dark text-white">
-                            <i class="bi bi-cash-register"></i> Bảng điều khiển
-                        </a>
                         <a href="{% url 'create_order' %}" class="list-group-item list-group-item-action bg-dark text-white">
                             <i class="bi bi-cart-plus"></i> Tạo đơn hàng
                         </a>

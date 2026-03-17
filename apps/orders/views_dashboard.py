@@ -132,25 +132,28 @@ def barista_dashboard(request):
             return redirect('dashboard')
     
     today = timezone.now().date()
+    now = timezone.now()
     
-    # LEFT: Đơn hàng hôm nay chưa hoàn thành (pending + preparing)
+    # LEFT: Đơn hàng chưa hoàn thành (pending + preparing) - TẤT CẢ, KHÔNG PHÂN BỠ NGÀY
+    # Vì các đơn cũ vẫn cần được barista xử lý nếu chưa hoàn thành
     pending_orders = Order.objects.filter(
-        order_date__date=today,
         status__in=['pending', 'preparing']
     ).select_related('customer', 'staff').prefetch_related(
         'items__product',
-        'items__product__recipe_set',
-        'items__product__recipe_set__recipeingredient_set__ingredient'
+        'items__product__recipes__ingredient'
     ).order_by('order_date')
     
     print(f"[DEBUG] Barista dashboard: today={today}, pending={pending_orders.count()}")
     for o in pending_orders[:5]:
         print(f"  - Order {o.id}: status={o.status}, date={o.order_date}")
     
-    # RIGHT: Đơn hàng hôm nay đã hoàn thành
+    # RIGHT: Đơn hàng đã hoàn thành trong 24 giờ gần nhất (từ bây giờ tính ngược)
+    # Không lọc theo order_date vì các đơn cũ cũng có thể hoàn thành hôm nay
+    from datetime import timedelta
+    time_24h_ago = now - timedelta(hours=24)
     completed_orders = Order.objects.filter(
-        order_date__date=today,
-        status='completed'
+        status='completed',
+        order_date__gte=time_24h_ago  # Lấy đơn từ 24h gần nhất
     ).select_related('customer', 'staff').order_by('-order_date')
     
     # Get low stock ingredients
@@ -158,11 +161,60 @@ def barista_dashboard(request):
         quantity__lt=10  # TODO: Use min_quantity field
     )
     
+    # Build ordersData JSON for JavaScript
+    import json
+    from decimal import Decimal
+    
+    class DecimalEncoder(json.JSONEncoder):
+        def default(self, obj):
+            if isinstance(obj, Decimal):
+                return float(obj)
+            return super().default(obj)
+    
+    orders_data = {}
+    for order in pending_orders:
+        items_list = []
+        for item in order.items.all():
+            recipes_list = []
+            for recipe in item.product.recipes.all():
+                recipes_list.append({
+                    'name': f'Công thức - {recipe.ingredient.name}',
+                    'ingredient_name': recipe.ingredient.name,
+                    'quantity_small': float(recipe.quantity_small) if hasattr(recipe.quantity_small, '__float__') else recipe.quantity_small,
+                    'quantity_medium': float(recipe.quantity_medium) if hasattr(recipe.quantity_medium, '__float__') else recipe.quantity_medium,
+                    'quantity_large': float(recipe.quantity_large) if hasattr(recipe.quantity_large, '__float__') else recipe.quantity_large,
+                    'unit': recipe.ingredient.unit or 'pcs'
+                })
+            
+            qty_for_size = {
+                'S': item.product.price_small,
+                'M': item.product.price_medium,
+                'L': item.product.price_large,
+            }.get(item.size, 1)
+            
+            items_list.append({
+                'id': item.id,
+                'product_id': item.product.id,
+                'name': item.product.name,
+                'size': item.size,
+                'quantity': item.quantity,
+                'recipes': recipes_list
+            })
+        
+        orders_data[str(order.id)] = {
+            'id': order.id,
+            'number': order.order_number,
+            'items': items_list
+        }
+    
+    orders_data_json = json.dumps(orders_data, cls=DecimalEncoder)
+    
     context = {
         'pending_orders': pending_orders,
         'completed_orders': completed_orders,
         'low_stock_ingredients': low_stock,
         'queue_count': pending_orders.count(),
+        'orders_data_json': orders_data_json,
     }
     
     return render(request, 'dashboards/barista_dashboard.html', context)

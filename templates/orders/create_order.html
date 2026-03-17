@@ -330,6 +330,8 @@ function searchCustomer() {
 }
 
 function processOrder() {
+    console.log('[CART_DEBUG] Cart before submit:', cart);
+    
     if (cart.length === 0) {
         alert('Giỏ hàng trống!');
         return;
@@ -350,6 +352,8 @@ function processOrder() {
         final_amount: finalAmount,
         payment_method: document.getElementById('paymentMethod').value
     };
+    
+    console.log('[ORDER_DATA_DEBUG] Sending order data:', JSON.stringify(orderData));
     
     var csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
     

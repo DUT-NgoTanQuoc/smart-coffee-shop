@@ -7,7 +7,7 @@
 <style>
     .cashier-container {
         display: grid;
-        grid-template-columns: 0.8fr 2fr 0.9fr;
+        grid-template-columns: 2fr 0.9fr;
         gap: 15px;
         height: 90vh;
         padding: 15px;
@@ -224,36 +224,6 @@
 </style>
 
 <div class="cashier-container">
-    <!-- LEFT: Danh sách đơn hàng -->
-    <div class="cashier-panel">
-        <div class="panel-header">
-            <i class="bi bi-receipt"></i> Đơn hàng
-        </div>
-        <div class="panel-body">
-            <input type="text" class="search-box" placeholder="🔍 Tìm đơn...">
-            
-            <div style="font-size: 12px; color: #999; margin-bottom: 10px;">Hôm nay</div>
-            {% for order in orders %}
-            <div class="order-item" style="cursor: pointer;" onclick="loadOrderDetail({{ order.id }})">
-                <div class="item-info">
-                    <div class="item-name">ORD{{ order.order_number }}</div>
-                    <div class="item-size">
-                        <span class="badge bg-{% if order.status == 'pending' %}danger{% elif order.status == 'preparing' %}warning{% else %}success{% endif %} " style="font-size: 10px;">
-                            {{ order.get_status_display }}
-                        </span>
-                    </div>
-                </div>
-                <div class="item-price">{{ order.final_amount|floatformat:0 }}đ</div>
-            </div>
-            {% empty %}
-            <div style="text-align: center; color: #999; padding: 20px 0;">
-                <i class="bi bi-inbox" style="font-size: 2rem;"></i>
-                <p style="font-size: 12px;">Không có đơn hàng</p>
-            </div>
-            {% endfor %}
-        </div>
-    </div>
-    
     <!-- MIDDLE: Danh sách sản phẩm -->
     <div class="cashier-panel">
         <div class="panel-header">

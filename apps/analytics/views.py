@@ -16,7 +16,7 @@ def dashboard(request):
     Dashboard chính - Tổng quan hệ thống
     Main dashboard - System overview
     - Barista: Redirect to barista dashboard (4-box layout)
-    - Cashier: Redirect to cashier dashboard (POS)
+    - Cashier: Redirect to create order page (POS)
     - Admin: Show admin dashboard (stats)
     """
     # Check user role
@@ -29,7 +29,7 @@ def dashboard(request):
             if staff.role_id == 3:  # Barista
                 return redirect('barista-dashboard')
             elif staff.role_id == 2:  # Cashier
-                return redirect('cashier-dashboard')
+                return redirect('create_order')
         except Account.DoesNotExist:
             # User không có Account record, hiển thị admin dashboard
             pass
