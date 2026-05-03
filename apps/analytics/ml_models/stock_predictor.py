@@ -7,6 +7,7 @@ Calculate average consumption and predict stock depletion
 
 from datetime import datetime, timedelta
 from decimal import Decimal
+from collections import defaultdict
 
 
 class StockPredictor:
@@ -17,6 +18,71 @@ class StockPredictor:
     
     def __init__(self):
         self.consumption_period = 7  # Tính mức tiêu thụ trong 7 ngày
+        self._daily_consumption_cache = None
+
+    def _build_daily_consumption_cache(self):
+        """
+        Build daily consumption for all ingredients in one pass.
+        This avoids querying the full order history for each ingredient.
+        """
+        if self._daily_consumption_cache is not None:
+            return self._daily_consumption_cache
+
+        from apps.orders.models import OrderItem
+        from apps.products.models import Recipe
+        from django.db.models import Sum
+        from django.utils import timezone
+
+        end_date = timezone.now()
+        start_date = end_date - timedelta(days=self.consumption_period)
+
+        item_rows = (
+            OrderItem.objects.filter(
+                order__status='completed',
+                order__order_date__gte=start_date,
+                order__order_date__lte=end_date,
+            )
+            .values('product_id', 'size')
+            .annotate(total_quantity=Sum('quantity'))
+        )
+
+        recipe_rows = Recipe.objects.values(
+            'product_id',
+            'ingredient_id',
+            'quantity_small',
+            'quantity_medium',
+            'quantity_large',
+        )
+
+        recipes_by_product = defaultdict(list)
+        for row in recipe_rows:
+            recipes_by_product[row['product_id']].append(row)
+
+        total_consumption = defaultdict(float)
+        for item in item_rows:
+            product_id = item['product_id']
+            size = item['size']
+            ordered_qty = float(item['total_quantity'] or 0)
+            if ordered_qty <= 0:
+                continue
+
+            for recipe in recipes_by_product.get(product_id, []):
+                if size == 'S':
+                    recipe_qty = float(recipe['quantity_small'] or 0)
+                elif size == 'M':
+                    recipe_qty = float(recipe['quantity_medium'] or 0)
+                elif size == 'L':
+                    recipe_qty = float(recipe['quantity_large'] or 0)
+                else:
+                    recipe_qty = float(recipe['quantity_medium'] or 0)
+
+                total_consumption[recipe['ingredient_id']] += recipe_qty * ordered_qty
+
+        self._daily_consumption_cache = {
+            ingredient_id: consumed / self.consumption_period
+            for ingredient_id, consumed in total_consumption.items()
+        }
+        return self._daily_consumption_cache
     
     def calculate_daily_consumption(self, ingredient):
         """
@@ -29,40 +95,8 @@ class StockPredictor:
         Returns:
             float: Mức tiêu thụ trung bình/ngày
         """
-        from apps.orders.models import Order, OrderItem
-        from apps.products.models import Recipe
-        from django.utils import timezone
-        
-        # Lấy đơn hàng hoàn thành trong N ngày qua
-        end_date = timezone.now()
-        start_date = end_date - timedelta(days=self.consumption_period)
-        
-        completed_orders = Order.objects.filter(
-            status='completed',
-            order_date__gte=start_date,
-            order_date__lte=end_date
-        )
-        
-        total_consumed = 0
-        
-        # Tính tổng lượng nguyên liệu đã dùng
-        for order in completed_orders:
-            for item in order.items.all():
-                # Lấy công thức của sản phẩm
-                recipes = Recipe.objects.filter(
-                    product=item.product,
-                    ingredient=ingredient
-                )
-                
-                for recipe in recipes:
-                    # Tính lượng nguyên liệu cần cho item này
-                    quantity_per_item = recipe.get_quantity(item.size)
-                    total_consumed += float(quantity_per_item) * item.quantity
-        
-        # Tính trung bình mỗi ngày
-        daily_consumption = total_consumed / self.consumption_period if self.consumption_period > 0 else 0
-        
-        return daily_consumption
+        cache = self._build_daily_consumption_cache()
+        return round(cache.get(ingredient.id, 0), 6)
     
     def predict_stockout_date(self, ingredient):
         """

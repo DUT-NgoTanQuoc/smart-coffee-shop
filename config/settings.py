@@ -12,10 +12,32 @@ https://docs.djangoproject.com/en/4.2/ref/settings/
 
 from pathlib import Path
 import os
+import sys
 from decouple import config
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+
+def _parse_bool_env(raw_value, default=False):
+    """
+    Parse boolean-like environment values safely.
+    Accepts common boolean values and environment profile keywords.
+    """
+    if isinstance(raw_value, bool):
+        return raw_value
+    if raw_value is None:
+        return default
+
+    normalized = str(raw_value).strip().lower()
+    truthy = {'1', 'true', 't', 'yes', 'y', 'on', 'dev', 'development', 'local'}
+    falsy = {'0', 'false', 'f', 'no', 'n', 'off', 'prod', 'production', 'release'}
+
+    if normalized in truthy:
+        return True
+    if normalized in falsy:
+        return False
+    return default
 
 
 # Quick-start development settings - unsuitable for production
@@ -25,9 +47,13 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = config('SECRET_KEY', default='django-insecure-j=^9wn&$rux*-!#gv#*-_%isgef*(2_gl#%ej$t&x8i^8n$2oh')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = config('DEBUG', default=True, cast=bool)
+DEBUG = _parse_bool_env(config('DEBUG', default='true'), default=True)
 
-ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='*', cast=lambda v: [s.strip() for s in v.split(',')])
+ALLOWED_HOSTS = [
+    host.strip()
+    for host in config('ALLOWED_HOSTS', default='*').split(',')
+    if host.strip()
+] or ['*']
 
 
 # Application definition
@@ -92,7 +118,9 @@ WSGI_APPLICATION = 'config.wsgi.application'
 # Use SQLite for development by default. To force PostgreSQL set USE_SQLITE=False
 # in your environment (e.g. in a .env file). This keeps local setup simple while
 # preserving production Postgres configuration.
-USE_SQLITE = config('USE_SQLITE', default=False, cast=bool)
+USE_SQLITE = _parse_bool_env(config('USE_SQLITE', default='true'), default=True)
+if 'test' in sys.argv:
+    USE_SQLITE = _parse_bool_env(config('TEST_USE_SQLITE', default='true'), default=True)
 
 if USE_SQLITE:
     DATABASES = {
@@ -165,10 +193,27 @@ MEDIA_ROOT = BASE_DIR / 'media'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+# Cache configuration - Tối ưu performance
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'LOCATION': 'smart-coffee-shop-cache',
+        'TIMEOUT': 300,  # 5 phút
+        'OPTIONS': {
+            'MAX_ENTRIES': 1000
+        }
+    }
+}
+
+# Session cache backend - tăng tốc
+SESSION_ENGINE = 'django.contrib.sessions.backends.cache'
+SESSION_CACHE_ALIAS = 'default'
+
 # Authentication settings
 LOGIN_URL = 'login'
 LOGIN_REDIRECT_URL = '/'
 LOGOUT_REDIRECT_URL = '/accounts/login/'
+CSRF_FAILURE_VIEW = 'apps.core.views.csrf_failure'
 
 # Custom authentication backends
 AUTHENTICATION_BACKENDS = [

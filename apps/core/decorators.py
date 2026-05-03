@@ -30,18 +30,13 @@ def role_required(*allowed_roles):
             if request.user.is_superuser:
                 return view_func(request, *args, **kwargs)
             
-            # Kiểm tra role của staff
-            try:
-                from apps.core.utils import get_current_staff
-                staff = get_current_staff(request.user)
-                
-                if staff and staff.role in allowed_roles:
-                    return view_func(request, *args, **kwargs)
-                else:
-                    messages.error(request, 'Bạn không có quyền truy cập chức năng này.')
-                    return redirect('dashboard')
-            except Exception as e:
-                messages.error(request, 'Không tìm thấy thông tin nhân viên.')
+            # Kiểm tra role của user (từ CustomAccountBackend)
+            user_role = getattr(request.user, 'role', None)
+            
+            if user_role and user_role in allowed_roles:
+                return view_func(request, *args, **kwargs)
+            else:
+                messages.error(request, 'Bạn không có quyền truy cập chức năng này.')
                 return redirect('dashboard')
         
         return wrapper
@@ -50,7 +45,7 @@ def role_required(*allowed_roles):
 
 def admin_required(view_func):
     """
-    Decorator yêu cầu role Admin (superuser hoặc admin role)
+    Decorator yêu cầu role Admin (superuser hoặc admin/manager role)
     Decorator requiring Admin role
     """
     @wraps(view_func)
@@ -62,13 +57,9 @@ def admin_required(view_func):
         if request.user.is_superuser:
             return view_func(request, *args, **kwargs)
         
-        try:
-            from apps.core.utils import get_current_staff
-            staff = get_current_staff(request.user)
-            if staff and staff.role == 'admin':
-                return view_func(request, *args, **kwargs)
-        except:
-            pass
+        user_role = getattr(request.user, 'role', None)
+        if user_role in ['admin', 'manager']:
+            return view_func(request, *args, **kwargs)
         
         messages.error(request, 'Chỉ Admin mới có quyền truy cập.')
         return redirect('dashboard')
@@ -97,7 +88,7 @@ def manager_required(view_func):
     Decorator yêu cầu role Manager
     Decorator requiring Manager role
     """
-    return role_required('manager')(view_func)
+    return role_required('manager', 'admin')(view_func)
 
 
 def cashier_or_manager_required(view_func):

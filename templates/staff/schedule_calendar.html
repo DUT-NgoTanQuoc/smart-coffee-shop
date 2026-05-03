@@ -1,0 +1,481 @@
+﻿{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Lịch phân ca nhân viên - Smart Coffee Shop{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
+    <div>
+        <h2 class="mb-1"><i class="bi bi-calendar-event"></i> Lịch phân ca nhân viên</h2>
+        <small class="text-muted">Mỗi ngày có 3 ca cố định. Có thể xem theo tháng/tuần/ngày, lọc theo nhân viên, thêm/sửa/xóa không cần reload.</small>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="{% url 'staff_payroll_summary' %}" class="btn btn-info text-white">
+            <i class="bi bi-cash-coin"></i> Tổng hợp lương
+        </a>
+        <a href="{% url 'staff_list' %}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Về quản lý nhân viên
+        </a>
+    </div>
+</div>
+
+<div class="row g-3">
+    <div class="col-xl-8">
+        <div class="card shadow-sm mb-3">
+            <div class="card-body d-flex flex-wrap align-items-center gap-2">
+                <label for="staffFilter" class="form-label mb-0 fw-semibold">Lọc nhân viên</label>
+                <select id="staffFilter" class="form-select form-select-sm" style="max-width: 280px;">
+                    <option value="">Tất cả nhân viên</option>
+                    {% for staff in staff_choices %}
+                    <option value="{{ staff.id }}">{{ staff.name }} ({{ staff.get_role_display }})</option>
+                    {% endfor %}
+                </select>
+                <button id="clearFilterBtn" class="btn btn-sm btn-outline-secondary" type="button">
+                    <i class="bi bi-x-circle"></i> Bỏ lọc
+                </button>
+            </div>
+        </div>
+
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <div class="d-flex flex-wrap gap-2 mb-2 small">
+                    {% for rule in shift_rules %}
+                    <span class="badge rounded-pill text-bg-light border">
+                        {{ rule.get_shift_display }}: {{ rule.start_time|time:"H:i" }} - {{ rule.end_time|time:"H:i" }}
+                        ({{ rule.min_staff }}-{{ rule.max_staff }} người)
+                    </span>
+                    {% endfor %}
+                </div>
+
+                <div class="d-flex flex-wrap gap-2 mb-3 small">
+                    <span class="badge bg-success">Đủ người</span>
+                    <span class="badge bg-warning text-dark">Thiếu người</span>
+                    <span class="badge bg-danger">Dư người</span>
+                </div>
+
+                <div id="scheduleCalendar"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-4">
+        <div class="card shadow-sm sticky-top" style="top: 1rem;">
+            <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+                <strong><i class="bi bi-plus-circle"></i> Phân ca nhanh</strong>
+                <span id="formModeBadge" class="badge text-bg-light">Thêm mới</span>
+            </div>
+            <div class="card-body">
+                <div id="formAlert" class="d-none"></div>
+
+                <form id="assignmentForm" novalidate>
+                    {% csrf_token %}
+                    <input type="hidden" id="assignmentId" value="">
+
+                    <div class="mb-3">
+                        <label class="form-label">Nhân viên</label>
+                        {{ assignment_form.staff }}
+                    </div>
+
+                    <div class="row g-2">
+                        <div class="col-6">
+                            <label class="form-label">Ngày làm</label>
+                            {{ assignment_form.work_date }}
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label">Ca làm</label>
+                            {{ assignment_form.shift }}
+                        </div>
+                    </div>
+
+                    <div class="row g-2 mt-1">
+                        <div class="col-6">
+                            <label class="form-label">Bắt đầu</label>
+                            {{ assignment_form.start_time }}
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label">Kết thúc</label>
+                            {{ assignment_form.end_time }}
+                        </div>
+                    </div>
+
+                    <div class="mb-3 mt-2">
+                        <label class="form-label">Lương theo giờ</label>
+                        {{ assignment_form.hourly_rate }}
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Ghi chú</label>
+                        {{ assignment_form.note }}
+                    </div>
+
+                    <div class="d-grid gap-2">
+                        <button type="submit" id="submitBtn" class="btn btn-success">
+                            <i class="bi bi-save"></i> Lưu phân ca
+                        </button>
+                        <button type="button" id="resetFormBtn" class="btn btn-outline-secondary">
+                            <i class="bi bi-eraser"></i> Xóa dữ liệu form
+                        </button>
+                    </div>
+                </form>
+
+                <hr>
+
+                <div id="selectedShiftPanel" class="small">
+                    <div class="fw-semibold mb-1">Chi tiết ca đã chọn</div>
+                    <div class="text-muted">Chọn một ca trên lịch để xem danh sách nhân viên trong ca.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    #scheduleCalendar {
+        min-height: 760px;
+    }
+
+    .fc .fc-toolbar-title {
+        font-size: 1.15rem;
+        font-weight: 600;
+    }
+
+    .fc-event {
+        border: none;
+        border-radius: 6px;
+        padding: 2px 6px;
+        font-size: 0.78rem;
+        cursor: pointer;
+    }
+
+    .fc .fc-timegrid-event-harness .fc-event-main {
+        padding: 3px 6px;
+    }
+
+    .assignment-row {
+        border: 1px solid #e9ecef;
+        border-radius: 8px;
+        padding: 8px;
+        margin-bottom: 8px;
+        background: #f8f9fa;
+    }
+
+    .shift-warning-box {
+        border-radius: 8px;
+        padding: 8px 10px;
+        margin-bottom: 8px;
+    }
+
+    .shift-warning-box.ok {
+        background: #e7f7ed;
+        border: 1px solid #c7ebd4;
+        color: #146c43;
+    }
+
+    .shift-warning-box.short {
+        background: #fff4e5;
+        border: 1px solid #ffe4b3;
+        color: #9a6700;
+    }
+
+    .shift-warning-box.excess {
+        background: #fde7ea;
+        border: 1px solid #f9c7ce;
+        color: #b42318;
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.20/index.global.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@fullcalendar/core@6.1.20/locales-all.global.min.js"></script>
+<script>
+(() => {
+    const formEl = document.getElementById('assignmentForm');
+    const formAlertEl = document.getElementById('formAlert');
+    const submitBtn = document.getElementById('submitBtn');
+    const resetFormBtn = document.getElementById('resetFormBtn');
+    const filterSelect = document.getElementById('staffFilter');
+    const clearFilterBtn = document.getElementById('clearFilterBtn');
+    const selectedShiftPanel = document.getElementById('selectedShiftPanel');
+    const formModeBadge = document.getElementById('formModeBadge');
+
+    const assignmentIdInput = document.getElementById('assignmentId');
+    const staffInput = formEl.querySelector('[name="staff"]');
+    const workDateInput = formEl.querySelector('[name="work_date"]');
+    const shiftInput = formEl.querySelector('[name="shift"]');
+    const startInput = formEl.querySelector('[name="start_time"]');
+    const endInput = formEl.querySelector('[name="end_time"]');
+    const hourlyRateInput = formEl.querySelector('[name="hourly_rate"]');
+    const noteInput = formEl.querySelector('[name="note"]');
+
+    const csrfToken = formEl.querySelector('[name="csrfmiddlewaretoken"]').value;
+
+    const API = {
+        events: "{% url 'schedule_api_events' %}",
+        create: "{% url 'schedule_api_create' %}",
+        updateTemplate: "{% url 'schedule_api_update' 0 %}",
+        deleteTemplate: "{% url 'schedule_api_delete' 0 %}",
+    };
+
+    function getUpdateUrl(id) {
+        return API.updateTemplate.replace('/0/update/', `/${id}/update/`);
+    }
+
+    function getDeleteUrl(id) {
+        return API.deleteTemplate.replace('/0/delete/', `/${id}/delete/`);
+    }
+
+    function showAlert(message, type = 'success') {
+        formAlertEl.className = `alert alert-${type} py-2`;
+        formAlertEl.textContent = message;
+        formAlertEl.classList.remove('d-none');
+    }
+
+    function hideAlert() {
+        formAlertEl.classList.add('d-none');
+    }
+
+    function formatErrors(errors) {
+        const lines = [];
+        Object.entries(errors || {}).forEach(([key, value]) => {
+            const msgs = Array.isArray(value) ? value : [value];
+            msgs.forEach((msg) => lines.push(`${msg}`));
+        });
+        return lines.join(' ');
+    }
+
+    function resetForm() {
+        assignmentIdInput.value = '';
+        formEl.reset();
+        formModeBadge.textContent = 'Thêm mới';
+        submitBtn.innerHTML = '<i class="bi bi-save"></i> Lưu phân ca';
+    }
+
+    function fillFormFromAssignment(assignment) {
+        assignmentIdInput.value = assignment.id;
+        staffInput.value = assignment.staff_id;
+        workDateInput.value = assignment.work_date;
+        shiftInput.value = assignment.shift;
+        startInput.value = assignment.start_time || '';
+        endInput.value = assignment.end_time || '';
+        hourlyRateInput.value = assignment.hourly_rate || '';
+        noteInput.value = assignment.note || '';
+
+        formModeBadge.textContent = 'Đang sửa';
+        submitBtn.innerHTML = '<i class="bi bi-pencil-square"></i> Cập nhật phân ca';
+    }
+
+    function renderSelectedShift(eventObj) {
+        const ext = eventObj.extendedProps || {};
+        const assignments = ext.assignments || [];
+
+        let html = `
+            <div class="fw-semibold mb-1">${ext.shift_display} - ${ext.work_date}</div>
+            <div class="shift-warning-box ${ext.status}">
+                <div><strong>Nhân sự:</strong> ${ext.total_count}/${ext.min_staff}-${ext.max_staff}</div>
+                <div>${ext.warning}</div>
+            </div>
+        `;
+
+        if (!assignments.length) {
+            html += '<div class="text-muted">Chưa có nhân viên trong ca này.</div>';
+        } else {
+            assignments.forEach((item) => {
+                html += `
+                    <div class="assignment-row">
+                        <div class="d-flex justify-content-between align-items-start gap-2">
+                            <div>
+                                <div><strong>${item.staff_name}</strong></div>
+                                <div class="text-muted">${item.start_time || '--:--'} - ${item.end_time || '--:--'}</div>
+                                <div class="text-muted">Lương giờ: ${Math.round(item.hourly_rate || 0).toLocaleString('vi-VN')}đ</div>
+                                ${item.note ? `<div class="text-muted">Ghi chú: ${item.note}</div>` : ''}
+                            </div>
+                            <div class="d-flex gap-1">
+                                <button type="button" class="btn btn-sm btn-warning edit-assignment-btn" data-id="${item.id}">Sửa</button>
+                                <button type="button" class="btn btn-sm btn-danger delete-assignment-btn" data-id="${item.id}">Xóa</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        selectedShiftPanel.innerHTML = html;
+
+        selectedShiftPanel.querySelectorAll('.edit-assignment-btn').forEach((btn) => {
+            btn.addEventListener('click', () => {
+                const id = Number(btn.dataset.id);
+                const assignment = assignments.find((x) => x.id === id);
+                if (!assignment) return;
+                fillFormFromAssignment(assignment);
+                hideAlert();
+            });
+        });
+
+        selectedShiftPanel.querySelectorAll('.delete-assignment-btn').forEach((btn) => {
+            btn.addEventListener('click', async () => {
+                const id = Number(btn.dataset.id);
+                if (!id) return;
+                if (!confirm('Bạn chắc chắn muốn xóa phân ca này?')) return;
+
+                const response = await fetch(getDeleteUrl(id), {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': csrfToken,
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                });
+
+                if (!response.ok) {
+                    showAlert('Xóa phân ca thất bại.', 'danger');
+                    return;
+                }
+
+                showAlert('Đã xóa phân ca.', 'success');
+                calendar.refetchEvents();
+            });
+        });
+    }
+
+    const calendarEl = document.getElementById('scheduleCalendar');
+    if (!window.FullCalendar || !window.FullCalendar.Calendar) {
+        calendarEl.innerHTML = `
+            <div class="alert alert-danger mb-0">
+                Không tải được thư viện lịch (FullCalendar).<br>
+                Vui lòng tải lại trang bằng <strong>Ctrl + F5</strong> hoặc kiểm tra kết nối CDN.
+            </div>
+        `;
+        return;
+    }
+
+    const calendar = new FullCalendar.Calendar(calendarEl, {
+        locale: 'vi',
+        initialView: 'dayGridMonth',
+        height: 'auto',
+        slotMinTime: '06:00:00',
+        slotMaxTime: '23:00:00',
+        headerToolbar: {
+            left: 'prev,next today',
+            center: 'title',
+            right: 'dayGridMonth,timeGridWeek,timeGridDay',
+        },
+        buttonText: {
+            today: 'Hôm nay',
+            month: 'Tháng',
+            week: 'Tuần',
+            day: 'Ngày',
+        },
+        navLinks: true,
+        dayMaxEvents: 3,
+        eventTimeFormat: { hour: '2-digit', minute: '2-digit', hour12: false },
+        events: function(fetchInfo, successCallback, failureCallback) {
+            const params = new URLSearchParams();
+            params.set('start', fetchInfo.startStr);
+            params.set('end', fetchInfo.endStr);
+            if (filterSelect.value) {
+                params.set('staff_id', filterSelect.value);
+            }
+
+            fetch(`${API.events}?${params.toString()}`)
+                .then((r) => r.json())
+                .then((data) => successCallback(data))
+                .catch((e) => failureCallback(e));
+        },
+        dateClick: function(info) {
+            workDateInput.value = info.dateStr;
+            assignmentIdInput.value = '';
+            formModeBadge.textContent = 'Thêm mới';
+            submitBtn.innerHTML = '<i class="bi bi-save"></i> Lưu phân ca';
+        },
+        eventDidMount: function(info) {
+            const status = info.event.extendedProps.status;
+            if (status === 'short') {
+                info.el.style.backgroundColor = '#f6c23e';
+                info.el.style.color = '#1f2937';
+            } else if (status === 'excess') {
+                info.el.style.backgroundColor = '#dc3545';
+                info.el.style.color = '#fff';
+            } else {
+                info.el.style.backgroundColor = '#198754';
+                info.el.style.color = '#fff';
+            }
+        },
+        eventClick: function(info) {
+            const ext = info.event.extendedProps;
+            workDateInput.value = ext.work_date;
+            shiftInput.value = ext.shift;
+            renderSelectedShift(info.event);
+        },
+    });
+
+    calendar.render();
+
+    filterSelect.addEventListener('change', () => {
+        calendar.refetchEvents();
+    });
+
+    clearFilterBtn.addEventListener('click', () => {
+        filterSelect.value = '';
+        calendar.refetchEvents();
+    });
+
+    resetFormBtn.addEventListener('click', () => {
+        resetForm();
+        hideAlert();
+    });
+
+    formEl.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        hideAlert();
+
+        submitBtn.disabled = true;
+
+        const payload = {
+            staff: staffInput.value,
+            work_date: workDateInput.value,
+            shift: shiftInput.value,
+            start_time: startInput.value,
+            end_time: endInput.value,
+            hourly_rate: hourlyRateInput.value,
+            note: noteInput.value,
+        };
+
+        const assignmentId = assignmentIdInput.value;
+        const isEdit = Boolean(assignmentId);
+        const url = isEdit ? getUpdateUrl(assignmentId) : API.create;
+
+        try {
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken,
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+                body: JSON.stringify(payload),
+            });
+
+            const data = await response.json();
+            if (!response.ok || !data.ok) {
+                if (data.errors) {
+                    showAlert(formatErrors(data.errors), 'danger');
+                } else {
+                    showAlert(data.message || 'Lưu phân ca thất bại.', 'danger');
+                }
+                return;
+            }
+
+            showAlert(data.message || 'Lưu thành công.', 'success');
+            resetForm();
+            calendar.refetchEvents();
+        } catch (error) {
+            showAlert('Lỗi kết nối khi lưu phân ca.', 'danger');
+        } finally {
+            submitBtn.disabled = false;
+        }
+    });
+})();
+</script>
+{% endblock %}

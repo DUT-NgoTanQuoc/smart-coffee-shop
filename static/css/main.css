@@ -1,5 +1,12 @@
 /* Main CSS for Smart Coffee Shop */
 
+body {
+    font-family: "Segoe UI", "Noto Sans", "Helvetica Neue", Arial, sans-serif;
+    /* Ensure proper rendering of Vietnamese characters */
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
 /* Sidebar Styling */
 #sidebar-wrapper {
     min-height: 100vh;
@@ -169,6 +176,23 @@
 /* Table Styling */
 .table thead {
     background-color: #f8f9fc;
+}
+
+/* Make tables responsive and prevent layout break */
+.table-responsive {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.table td, .table th {
+    white-space: nowrap; /* avoid very long wrapping that breaks layout */
+}
+
+/* Allow smaller screens to wrap table content more gracefully */
+@media (max-width: 768px) {
+    .table td, .table th {
+        white-space: normal;
+    }
 }
 
 /* Badges */

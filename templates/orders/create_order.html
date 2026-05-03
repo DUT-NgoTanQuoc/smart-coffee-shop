@@ -65,13 +65,24 @@
                 </div>
 
                 <div class="border-top pt-3">
+                    <div class="mb-3">
+                        <label>Mã giảm giá</label>
+                        <div class="input-group">
+                            <input type="text" class="form-control" id="discountCodeInput" placeholder="VD: KHAITRUONG10">
+                            <button class="btn btn-outline-primary" type="button" onclick="applyDiscountCode()">
+                                Áp dụng
+                            </button>
+                        </div>
+                        <small id="discountCodeInfo" class="text-muted d-block mt-1"></small>
+                    </div>
+
                     <div class="d-flex justify-content-between mb-2">
                         <strong>Tổng cộng:</strong>
                         <strong id="totalAmount">0đ</strong>
                     </div>
                     <div class="d-flex justify-content-between mb-2">
                         <span>Giảm giá:</span>
-                        <input type="number" class="form-control form-control-sm w-50" id="discount" value="0" min="0">
+                        <strong id="discountAmount" class="text-danger">0đ</strong>
                     </div>
                     <div class="d-flex justify-content-between mb-3">
                         <strong>Thành tiền:</strong>
@@ -83,8 +94,7 @@
                         <select class="form-select" id="paymentMethod">
                             <option value="cash">Tiền mặt</option>
                             <option value="card">Thẻ</option>
-                            <option value="transfer">Chuyển khoản</option>
-                            <option value="ewallet">Ví điện tử</option>
+                            <option value="momo">MoMo</option>
                         </select>
                     </div>
 
@@ -107,8 +117,7 @@
                 <h5 class="modal-title" id="sizeModalTitle">Chọn size</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-body text-center" id="sizeModalBody">
-            </div>
+            <div class="modal-body text-center" id="sizeModalBody"></div>
         </div>
     </div>
 </div>
@@ -155,7 +164,6 @@
     background: #f8f9fa;
 }
 </style>
-
 {% endblock %}
 
 {% block extra_js %}
@@ -163,55 +171,66 @@
 var cart = [];
 var customer = null;
 var currentProductId = null;
+var appliedDiscount = null;
+
+function formatMoney(value) {
+    return (Math.round(value || 0)).toLocaleString('vi-VN') + 'đ';
+}
+
+function getCartTotal() {
+    var total = 0;
+    for (var i = 0; i < cart.length; i++) {
+        total += cart[i].price * cart[i].quantity;
+    }
+    return total;
+}
 
 function selectProduct(productId) {
     currentProductId = productId;
-    
+
     var productCard = document.querySelector('[onclick="selectProduct(' + productId + ')"]');
     var productName = productCard.querySelector('.product-name').textContent;
     var priceText = productCard.querySelector('.product-price').textContent;
-    
+
     var prices = { small: 0, medium: 0, large: 0, name: productName };
-    
     var smallMatch = priceText.match(/S:\s*([\d,]+)/);
     var mediumMatch = priceText.match(/M:\s*([\d,]+)/);
     var largeMatch = priceText.match(/L:\s*([\d,]+)/);
-    
-    if (smallMatch) prices.small = parseInt(smallMatch[1].replace(/,/g, ''));
-    if (mediumMatch) prices.medium = parseInt(mediumMatch[1].replace(/,/g, ''));
-    if (largeMatch) prices.large = parseInt(largeMatch[1].replace(/,/g, ''));
-    
+
+    if (smallMatch) prices.small = parseInt(smallMatch[1].replace(/,/g, ''), 10);
+    if (mediumMatch) prices.medium = parseInt(mediumMatch[1].replace(/,/g, ''), 10);
+    if (largeMatch) prices.large = parseInt(largeMatch[1].replace(/,/g, ''), 10);
+
     var modalTitle = document.getElementById('sizeModalTitle');
     var modalBody = document.getElementById('sizeModalBody');
-    
     modalTitle.textContent = 'Chọn size - ' + productName;
-    
+
     var sizeButtons = '';
     var hasAnySize = false;
-    
+
     if (prices.small > 0) {
-        sizeButtons += '<button class="btn btn-primary btn-lg m-2" onclick="addItem(\'S\', ' + prices.small + ')">Size S - ' + prices.small.toLocaleString() + 'đ</button>';
+        sizeButtons += '<button class="btn btn-primary btn-lg m-2" onclick="addItem(\\'S\\', ' + prices.small + ')">Size S - ' + formatMoney(prices.small) + '</button>';
         hasAnySize = true;
     }
     if (prices.medium > 0) {
-        sizeButtons += '<button class="btn btn-primary btn-lg m-2" onclick="addItem(\'M\', ' + prices.medium + ')">Size M - ' + prices.medium.toLocaleString() + 'đ</button>';
+        sizeButtons += '<button class="btn btn-primary btn-lg m-2" onclick="addItem(\\'M\\', ' + prices.medium + ')">Size M - ' + formatMoney(prices.medium) + '</button>';
         hasAnySize = true;
     }
     if (prices.large > 0) {
-        sizeButtons += '<button class="btn btn-primary btn-lg m-2" onclick="addItem(\'L\', ' + prices.large + ')">Size L - ' + prices.large.toLocaleString() + 'đ</button>';
+        sizeButtons += '<button class="btn btn-primary btn-lg m-2" onclick="addItem(\\'L\\', ' + prices.large + ')">Size L - ' + formatMoney(prices.large) + '</button>';
         hasAnySize = true;
     }
-    
+
     if (!hasAnySize) {
         var directPrice = prices.medium || prices.small || prices.large || 0;
         if (directPrice > 0) {
             addItem('N/A', directPrice);
         } else {
-            alert('Sản phẩm này chưa có giá!');
+            alert('Sản phẩm này chưa có giá.');
         }
         return;
     }
-    
+
     modalBody.innerHTML = sizeButtons;
     var modal = new bootstrap.Modal(document.getElementById('sizeModal'));
     modal.show();
@@ -220,7 +239,7 @@ function selectProduct(productId) {
 function addItem(size, price) {
     var productCard = document.querySelector('[onclick="selectProduct(' + currentProductId + ')"]');
     var productName = productCard.querySelector('.product-name').textContent;
-    
+
     var existingItem = null;
     for (var i = 0; i < cart.length; i++) {
         if (cart[i].product_id === currentProductId && cart[i].size === size) {
@@ -228,7 +247,7 @@ function addItem(size, price) {
             break;
         }
     }
-    
+
     if (existingItem) {
         existingItem.quantity += 1;
     } else {
@@ -241,34 +260,64 @@ function addItem(size, price) {
             customizations: []
         });
     }
-    
+
     updateCart();
-    
+
     var modal = bootstrap.Modal.getInstance(document.getElementById('sizeModal'));
     if (modal) modal.hide();
 }
 
+function clearAppliedDiscount(message) {
+    appliedDiscount = null;
+    if (message) {
+        document.getElementById('discountCodeInfo').textContent = message;
+        document.getElementById('discountCodeInfo').className = 'text-warning d-block mt-1';
+    } else {
+        document.getElementById('discountCodeInfo').textContent = '';
+        document.getElementById('discountCodeInfo').className = 'text-muted d-block mt-1';
+    }
+}
+
+function calculateDiscountAmount(total) {
+    if (!appliedDiscount) return 0;
+
+    if (total < appliedDiscount.min_order_amount) {
+        clearAppliedDiscount('Đơn hàng không còn đủ điều kiện áp dụng mã.');
+        return 0;
+    }
+
+    var amount = total * (appliedDiscount.discount_percent / 100);
+    if (appliedDiscount.max_discount_amount > 0) {
+        amount = Math.min(amount, appliedDiscount.max_discount_amount);
+    }
+    amount = Math.round(amount);
+    if (amount > total) amount = total;
+    appliedDiscount.discount_amount = amount;
+    return amount;
+}
+
 function updateCart() {
     var cartItemsDiv = document.getElementById('cartItems');
-    
+
     if (cart.length === 0) {
         cartItemsDiv.innerHTML = '<p class="text-muted text-center">Giỏ hàng trống</p>';
-        document.getElementById('totalAmount').textContent = '0đ';
-        document.getElementById('finalAmount').textContent = '0đ';
+        document.getElementById('totalAmount').textContent = formatMoney(0);
+        document.getElementById('discountAmount').textContent = formatMoney(0);
+        document.getElementById('finalAmount').textContent = formatMoney(0);
         return;
     }
-    
+
     var html = '';
     var total = 0;
-    
+
     for (var i = 0; i < cart.length; i++) {
         var item = cart[i];
         var itemTotal = item.price * item.quantity;
         total += itemTotal;
-        
+
         html += '<div class="cart-item d-flex justify-content-between align-items-center mb-2 p-2 border rounded">' +
             '<div><strong>' + item.product_name + '</strong><br>' +
-            '<small>' + item.size + ' x ' + item.quantity + ' = ' + itemTotal.toLocaleString() + 'đ</small></div>' +
+            '<small>' + item.size + ' x ' + item.quantity + ' = ' + formatMoney(itemTotal) + '</small></div>' +
             '<div class="d-flex align-items-center gap-1">' +
                 '<div class="btn-group btn-group-sm" role="group">' +
                     '<button class="btn btn-outline-secondary" onclick="changeQuantity(' + i + ', -1)"><i class="bi bi-dash"></i></button>' +
@@ -279,13 +328,14 @@ function updateCart() {
             '</div>' +
             '</div>';
     }
-    
+
     cartItemsDiv.innerHTML = html;
-    document.getElementById('totalAmount').textContent = total.toLocaleString() + 'đ';
-    
-    var discount = parseFloat(document.getElementById('discount').value) || 0;
+    document.getElementById('totalAmount').textContent = formatMoney(total);
+
+    var discount = calculateDiscountAmount(total);
+    document.getElementById('discountAmount').textContent = '-' + formatMoney(discount);
     var finalAmount = total - discount;
-    document.getElementById('finalAmount').textContent = finalAmount.toLocaleString() + 'đ';
+    document.getElementById('finalAmount').textContent = formatMoney(finalAmount);
 }
 
 function removeFromCart(index) {
@@ -305,18 +355,20 @@ function changeQuantity(index, delta) {
 function clearCart() {
     if (confirm('Xóa toàn bộ giỏ hàng?')) {
         cart = [];
+        clearAppliedDiscount('');
+        document.getElementById('discountCodeInput').value = '';
         updateCart();
     }
 }
 
 function searchCustomer() {
     var phone = document.getElementById('customerPhone').value;
-    
+
     fetch('/orders/search-customer/?phone=' + encodeURIComponent(phone))
         .then(function(response) { return response.json(); })
         .then(function(data) {
             var infoDiv = document.getElementById('customerInfo');
-            
+
             if (data.found) {
                 customer = data.customer;
                 infoDiv.innerHTML = '<div class="alert alert-success">' +
@@ -329,34 +381,74 @@ function searchCustomer() {
         });
 }
 
+function applyDiscountCode() {
+    var code = (document.getElementById('discountCodeInput').value || '').trim();
+    var total = getCartTotal();
+    var info = document.getElementById('discountCodeInfo');
+
+    if (!code) {
+        clearAppliedDiscount('Vui lòng nhập mã giảm giá.');
+        updateCart();
+        return;
+    }
+    if (total <= 0) {
+        clearAppliedDiscount('Vui lòng thêm sản phẩm trước khi áp mã.');
+        return;
+    }
+
+    fetch('/orders/validate-discount/?code=' + encodeURIComponent(code) + '&total=' + total)
+        .then(function(response) {
+            return response.json().then(function(data) {
+                return { status: response.status, data: data };
+            });
+        })
+        .then(function(result) {
+            if (result.status >= 400 || !result.data.valid) {
+                clearAppliedDiscount(result.data.message || 'Mã giảm giá không hợp lệ.');
+                updateCart();
+                return;
+            }
+
+            appliedDiscount = {
+                code: result.data.code,
+                discount_percent: result.data.discount_percent,
+                discount_amount: result.data.discount_amount,
+                min_order_amount: result.data.min_order_amount,
+                max_discount_amount: result.data.max_discount_amount || 0
+            };
+
+            info.textContent = result.data.code + ' - giảm ' + result.data.discount_percent + '%';
+            info.className = 'text-success d-block mt-1';
+            updateCart();
+        })
+        .catch(function() {
+            clearAppliedDiscount('Lỗi kết nối khi kiểm tra mã giảm giá.');
+            updateCart();
+        });
+}
+
 function processOrder() {
-    console.log('[CART_DEBUG] Cart before submit:', cart);
-    
     if (cart.length === 0) {
         alert('Giỏ hàng trống!');
         return;
     }
-    
-    var total = 0;
-    for (var i = 0; i < cart.length; i++) {
-        total += cart[i].price * cart[i].quantity;
-    }
-    var discount = parseFloat(document.getElementById('discount').value) || 0;
+
+    var total = getCartTotal();
+    var discount = calculateDiscountAmount(total);
     var finalAmount = total - discount;
-    
+
     var orderData = {
         customer_id: customer ? customer.id : null,
         items: cart,
         total_amount: total,
         discount: discount,
         final_amount: finalAmount,
+        discount_code: appliedDiscount ? appliedDiscount.code : null,
         payment_method: document.getElementById('paymentMethod').value
     };
-    
-    console.log('[ORDER_DATA_DEBUG] Sending order data:', JSON.stringify(orderData));
-    
+
     var csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
-    
+
     fetch('/orders/create/', {
         method: 'POST',
         headers: {
@@ -371,9 +463,12 @@ function processOrder() {
             alert('Đơn hàng ' + data.order_number + ' đã được tạo thành công!');
             cart = [];
             customer = null;
+            appliedDiscount = null;
             document.getElementById('customerPhone').value = '';
             document.getElementById('customerInfo').innerHTML = '';
-            document.getElementById('discount').value = 0;
+            document.getElementById('discountCodeInput').value = '';
+            document.getElementById('discountCodeInfo').textContent = '';
+            document.getElementById('discountCodeInfo').className = 'text-muted d-block mt-1';
             updateCart();
         } else {
             alert('Lỗi: ' + data.message);
@@ -383,9 +478,6 @@ function processOrder() {
         alert('Lỗi kết nối: ' + error);
     });
 }
-
-document.getElementById('discount').addEventListener('input', updateCart);
 </script>
 {% csrf_token %}
 {% endblock %}
-

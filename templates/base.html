@@ -31,7 +31,7 @@
                     {% if user.is_superuser %}
                         <!-- ADMIN MENU -->
                         <div class="text-white-50 px-3 py-2 small mt-3">DASHBOARDS</div>
-                        <a href="{% url 'admin-dashboard' %}" class="list-group-item list-group-item-action bg-dark text-white">
+                        <a href="{% url 'dashboard' %}" class="list-group-item list-group-item-action bg-dark text-white">
                             <i class="bi bi-shield-lock"></i> Admin Dashboard
                         </a>
                         
@@ -51,17 +51,14 @@
                         <a href="{% url 'staff_list' %}" class="list-group-item list-group-item-action bg-dark text-white">
                             <i class="bi bi-person-badge"></i> Nhân viên
                         </a>
+                        <a href="{% url 'schedule_calendar' %}" class="list-group-item list-group-item-action bg-dark text-white">
+                            <i class="bi bi-calendar-event"></i> Lịch phân ca
+                        </a>
                         
                         <div class="text-white-50 px-3 py-2 small mt-3">PHÂN TÍCH AI</div>
-                        <a href="{% url 'revenue_forecast' %}" class="list-group-item list-group-item-action bg-dark text-white">
-                            <i class="bi bi-graph-up"></i> Dự đoán doanh thu
-                        </a>
-                        <a href="{% url 'stock_prediction' %}" class="list-group-item list-group-item-action bg-dark text-white">
-                            <i class="bi bi-box2"></i> Dự đoán tồn kho
-                        </a>
-                        <a href="{% url 'trends' %}" class="list-group-item list-group-item-action bg-dark text-white">
-                            <i class="bi bi-bar-chart-line"></i> Xu hướng
-                        </a>
+                        <div class="px-3 py-2 small text-white-50">
+                            Đã tích hợp vào Dashboard và tab Nguyên liệu
+                        </div>
                     
                     {% else %}
                         <!-- CASHIER MENU (role_id = 2) -->

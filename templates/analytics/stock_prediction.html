@@ -1,0 +1,78 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Dự đoán tồn kho{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-box2"></i> Dự đoán tồn kho</h2>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <div class="text-muted">Tổng nguyên liệu</div>
+                <h4 class="mb-0">{{ summary.total_ingredients }}</h4>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <div class="text-muted">Ưu tiên cao</div>
+                <h4 class="mb-0 text-danger">{{ summary.high_priority }}</h4>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <div class="text-muted">Ưu tiên trung bình</div>
+                <h4 class="mb-0 text-warning">{{ summary.medium_priority }}</h4>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card shadow">
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>Nguyên liệu</th>
+                    <th>Tồn kho</th>
+                    <th>Tiêu thụ/ngày</th>
+                    <th>Còn (ngày)</th>
+                    <th>Gợi ý nhập</th>
+                    <th>Mức độ</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for p in predictions %}
+                <tr>
+                    <td>{{ p.ingredient.name }}</td>
+                    <td>{{ p.current_stock }} {{ p.unit }}</td>
+                    <td>{{ p.daily_consumption }} {{ p.unit }}</td>
+                    <td>{{ p.days_until_stockout|default:"N/A" }}</td>
+                    <td>{{ p.recommended_quantity }} {{ p.unit }}</td>
+                    <td>
+                        {% if p.priority == 'HIGH' %}
+                        <span class="badge bg-danger">HIGH</span>
+                        {% elif p.priority == 'MEDIUM' %}
+                        <span class="badge bg-warning text-dark">MEDIUM</span>
+                        {% else %}
+                        <span class="badge bg-secondary">LOW</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" class="text-center text-muted py-4">Chưa có dữ liệu</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

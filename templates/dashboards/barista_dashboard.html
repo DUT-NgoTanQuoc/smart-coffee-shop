@@ -233,7 +233,7 @@
                     <div style="flex: 1; cursor: pointer;" onclick="selectOrder({{ order.id }}, this.parentElement)">
                         <div class="order-code">
                             <a href="{% url 'order_detail' order.id %}" target="_blank" style="color: inherit; text-decoration: none;">
-                                ORD{{ order.order_number }} 🔗
+                                {{ order.order_number }} 🔗
                             </a>
                         </div>
                         <span class="order-time-small">{{ order.order_date|date:"H:i:s" }}</span>
@@ -303,7 +303,7 @@
                 <div class="completed-badge">
                     <div class="completed-code">
                         <a href="{% url 'order_detail' order.id %}" target="_blank" style="color: inherit; text-decoration: none;">
-                            ORD{{ order.order_number }} 🔗
+                            {{ order.order_number }} 🔗
                         </a>
                     </div>
                     <div class="completed-time">{{ order.order_date|date:"H:i:s" }}</div>
@@ -330,29 +330,19 @@ let selectedDishId = null;
 // Dữ liệu tất cả đơn hàng + món + công thức từ server (JSON)
 const ordersData = JSON.parse('{{ orders_data_json|escapejs }}');
 
-console.log('=== BARISTA DASHBOARD LOADED ===');
-console.log('Orders Data:', ordersData);
-console.log('Total orders loaded:', Object.keys(ordersData).length);
 Object.keys(ordersData).forEach(orderId => {
     const order = ordersData[orderId];
-    console.log(`Order ${orderId} (${order.number}): ${order.items.length} items`);
     order.items.forEach(item => {
-        console.log(`  - ${item.name} (${item.size}) x${item.quantity}, recipes: ${item.recipes.length}`);
     });
 });
 
 function selectOrder(orderId, element) {
-    console.log('[BARISTA] selectOrder called with orderId:', orderId, 'element:', element);
     
     // Lấy orderId từ string nếu cần
     orderId = parseInt(orderId);
     selectedOrderId = orderId;
     selectedDishId = null;
     
-    console.log('=== SELECT ORDER ===');
-    console.log('Order ID (parsed):', orderId);
-    console.log('Available orders:', Object.keys(ordersData));
-    console.log('Selected order data:', ordersData[orderId]);
     
     // Highlight selected order
     document.querySelectorAll('.order-badge').forEach(el => {
@@ -376,7 +366,6 @@ function selectOrder(orderId, element) {
         return;
     }
     
-    console.log('Order found:', order.number, 'Items count:', order.items.length);
     
     let html = '';
     if (order.items.length === 0) {
@@ -385,7 +374,6 @@ function selectOrder(orderId, element) {
     } else {
         html = '<div class="dish-list">';
         order.items.forEach((item, idx) => {
-            console.log(`  [Item ${idx + 1}]:`, item.name, `x${item.quantity}, recipes:`, item.recipes.length);
             html += `
                 <div class="dish-item" onclick="selectDish(${item.product_id}, '${item.name.replace(/'/g, "\\'")}', '${item.size}', this)">
                     <div class="dish-name">☕ ${item.name}</div>
@@ -396,11 +384,9 @@ function selectOrder(orderId, element) {
         html += '</div>';
     }
     
-    console.log('Setting dishList innerHTML, length:', html.length);
     const dishListEl = document.getElementById('dishList');
     if (dishListEl) {
         dishListEl.innerHTML = html;
-        console.log('dishList updated successfully');
     } else {
         console.error('dishList element not found!');
     }
@@ -414,8 +400,6 @@ function selectOrder(orderId, element) {
 function selectDish(productId, dishName, size, element) {
     selectedDishId = productId;
     
-    console.log('=== SELECT DISH ===');
-    console.log('Dish ID:', productId, 'Name:', dishName);
     
     // Highlight selected dish
     document.querySelectorAll('.dish-item').forEach(el => {
@@ -436,8 +420,6 @@ function selectDish(productId, dishName, size, element) {
         return;
     }
     
-    console.log('Item found:', item);
-    console.log('Recipes count:', item.recipes.length);
     
     if (!item.recipes || item.recipes.length === 0) {
         document.getElementById('recipeDetail').innerHTML = `
@@ -454,7 +436,7 @@ function selectDish(productId, dishName, size, element) {
     html += `<hr>`;
     
     item.recipes.forEach(recipe => {
-        const qty = recipe['quantity_' + size.toLowerCase()] || recipe.quantity_small || 0;
+        const qty = recipe.quantity || 0;
         html += `
             <div style="margin-bottom: 15px; padding: 12px; background: #f9f9f9; border-left: 4px solid #667eea; border-radius: 4px;">
                 <div style="font-weight: 600; color: #333; margin-bottom: 8px;">
@@ -470,12 +452,10 @@ function selectDish(productId, dishName, size, element) {
         `;
     });
     
-    console.log('Rendering recipe HTML');
     document.getElementById('recipeDetail').innerHTML = html;
 }
 
 function completeOrder(orderId) {
-    console.log('[COMPLETE] Starting completeOrder for orderId:', orderId);
     
     if (!confirm('Xác nhận đơn này đã hoàn thành?')) return;
     
@@ -489,14 +469,11 @@ function completeOrder(orderId) {
     })
     .then(r => r.json())
     .then(data => {
-        console.log('[COMPLETE] Response:', data);
         if (data.success) {
-            console.log('[COMPLETE] Success! Order marked as completed');
             
             // Tìm order badge và xóa nó khỏi ô 1
             const orderBadge = document.querySelector(`[onclick*="selectOrder(${orderId}"]`)?.closest('.order-badge');
             if (orderBadge) {
-                console.log('[COMPLETE] Removing order badge from pending list');
                 orderBadge.remove();
             }
             
@@ -518,7 +495,6 @@ function completeOrder(orderId) {
             
             // Reload trang sau 1 giây để cập nhật ô 4
             setTimeout(() => {
-                console.log('[COMPLETE] Reloading page to update completed orders list');
                 location.reload();
             }, 1000);
         } else {
@@ -548,3 +524,4 @@ function getCookie(name) {
 }
 </script>
 {% endblock %}
+

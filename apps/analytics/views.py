@@ -1,13 +1,17 @@
-from django.shortcuts import render, redirect
+import json
+
 from django.contrib.auth.decorators import login_required
-from .models import DailyStat
-from .ml_models import RevenuePredictor, StockPredictor, TrendAnalyzer
-from apps.orders.models import Order
-from apps.customers.models import Customer
-from apps.ingredients.models import Ingredient
-from apps.core.models import Account
+from django.db.models import Sum
+from django.shortcuts import redirect, render
 from django.utils import timezone
-from datetime import timedelta
+
+from apps.customers.models import Customer
+from apps.orders.models import Order
+from apps.products.models import Product
+from apps.staff.models import Staff
+
+from .ml_models import RevenuePredictor, StockPredictor, TrendAnalyzer
+from .models import DailyStat
 
 
 @login_required
@@ -19,20 +23,16 @@ def dashboard(request):
     - Cashier: Redirect to create order page (POS)
     - Admin: Show admin dashboard (stats)
     """
-    # Check user role
-    if request.user.is_superuser:
-        # Admin stays on admin dashboard
-        pass
-    else:
-        try:
-            staff = Account.objects.get(username=request.user.username)
-            if staff.role_id == 3:  # Barista
-                return redirect('barista-dashboard')
-            elif staff.role_id == 2:  # Cashier
-                return redirect('create_order')
-        except Account.DoesNotExist:
-            # User không có Account record, hiển thị admin dashboard
-            pass
+    from django.core.cache import cache
+    
+    # Check user role (from CustomAccountBackend)
+    user_role = getattr(request.user, 'role', None)
+    
+    if not request.user.is_superuser:
+        if user_role == 'barista':
+            return redirect('barista-dashboard')
+        elif user_role == 'cashier':
+            return redirect('create_order')
     
     today = timezone.now().date()
     
@@ -46,28 +46,106 @@ def dashboard(request):
     today_orders = Order.objects.filter(
         order_date__date=today,
         status='completed'
-    )
+    ).count()
     
-    # Cảnh báo nguyên liệu sắp hết
-    stock_predictor = StockPredictor()
-    low_stock_alerts = stock_predictor.get_low_stock_alerts()
+    # Lấy từ cache hoặc tính toán (cache 5 phút)
+    cache_key = f'dashboard_analytics:{today.isoformat()}'
+    analytics_data = cache.get(cache_key)
     
-    # Doanh thu 7 ngày qua
-    revenue_predictor = RevenuePredictor()
-    revenue_data = revenue_predictor.predict(days_ahead=7)
-    
-    # Top 5 sản phẩm bán chạy
-    trend_analyzer = TrendAnalyzer()
-    bestsellers = trend_analyzer.get_bestselling_products(limit=5, period_days=7)
+    if not analytics_data:
+        # Cảnh báo nguyên liệu sắp hết
+        stock_predictor = StockPredictor()
+        low_stock_alerts = stock_predictor.get_low_stock_alerts()
+
+        # Doanh thu 7 ngày qua (cho biểu đồ doanh thu)
+        revenue_predictor = RevenuePredictor()
+        revenue_data = revenue_predictor.predict(days_ahead=7)
+
+        # Top 5 sản phẩm bán chạy (trong 7 ngày)
+        trend_analyzer = TrendAnalyzer()
+        bestsellers = trend_analyzer.get_bestselling_products(limit=5, period_days=7)
+        peak_hours = trend_analyzer.get_peak_hours(period_days=30)
+        category_performance = trend_analyzer.get_category_performance(period_days=30)
+        customer_insights = trend_analyzer.get_customer_insights()
+        revenue_summary = revenue_predictor.get_summary(days_ahead=30)
+
+        # Chuẩn bị dữ liệu biểu đồ cho món bán chạy (best seller)
+        bestseller_chart = {
+            "labels": [item["product_name"] for item in bestsellers],
+            "quantities": [item["quantity_sold"] for item in bestsellers],
+            "revenues": [item["revenue"] for item in bestsellers],
+        }
+
+        # Chuẩn bị dữ liệu biểu đồ cho nguyên liệu (tồn kho & gợi ý nhập)
+        ingredient_labels = [alert["ingredient"].name for alert in low_stock_alerts]
+        ingredient_current_stock = [alert["current_stock"] for alert in low_stock_alerts]
+        ingredient_recommended = [alert["recommended_quantity"] for alert in low_stock_alerts]
+        ingredient_days_left = [alert["days_until_stockout"] or 0 for alert in low_stock_alerts]
+
+        ingredient_chart = {
+            "labels": ingredient_labels,
+            "current_stock": ingredient_current_stock,
+            "recommended_quantity": ingredient_recommended,
+            "days_until_stockout": ingredient_days_left,
+        }
+
+        peak_hours_chart = {
+            "labels": peak_hours.get("labels", []),
+            "data": peak_hours.get("data", []),
+            "peak_hour": peak_hours.get("peak_hour"),
+            "peak_count": peak_hours.get("peak_count"),
+        }
+
+        category_chart = {
+            "labels": category_performance.get("labels", []),
+            "revenues": category_performance.get("revenues", []),
+            "quantities": category_performance.get("quantities", []),
+        }
+
+        tier_distribution = customer_insights.get('tier_distribution', {})
+        customer_tier_chart = {
+            "labels": tier_distribution.get("labels", []),
+            "data": tier_distribution.get("data", []),
+        }
+        
+        analytics_data = {
+            "low_stock_count": len(low_stock_alerts),
+            "low_stock_alerts": low_stock_alerts[:5],
+            "revenue_chart": json.dumps(revenue_data),
+            "revenue_summary": revenue_summary,
+            "bestsellers": bestsellers,
+            "bestseller_chart": json.dumps(bestseller_chart),
+            "ingredient_chart": json.dumps(ingredient_chart),
+            "peak_hours_chart": json.dumps(peak_hours_chart),
+            "category_chart": json.dumps(category_chart),
+            "customer_tier_chart": json.dumps(customer_tier_chart),
+        }
+        
+        # Cache 5 phút
+        cache.set(cache_key, analytics_data, 300)
+
+    # Backward-safe defaults when old cache payload exists.
+    analytics_data.setdefault('revenue_summary', {'total_predicted': 0, 'average_daily': 0, 'trend': 'unknown', 'message': ''})
+    analytics_data.setdefault('peak_hours_chart', json.dumps({'labels': [], 'data': []}))
+    analytics_data.setdefault('category_chart', json.dumps({'labels': [], 'revenues': []}))
+    analytics_data.setdefault('customer_tier_chart', json.dumps({'labels': [], 'data': []}))
     
     context = {
-        'today_revenue': today_stats.total_revenue,
-        'today_orders': today_orders.count(),
-        'low_stock_count': len(low_stock_alerts),
-        'total_customers': Customer.objects.count(),
-        'low_stock_alerts': low_stock_alerts[:5],  # Top 5 cảnh báo
-        'revenue_chart': revenue_data,
-        'bestsellers': bestsellers,
+        "today": today,
+        "today_revenue": today_stats.total_revenue,
+        "today_orders": today_orders,
+        "total_customers": Customer.objects.count(),
+        "total_orders_all": Order.objects.count(),
+        "total_revenue_all": Order.objects.filter(status='completed').aggregate(
+            Sum('final_amount')
+        )['final_amount__sum']
+        or 0,
+        "pending_orders": Order.objects.filter(status='pending').count(),
+        "preparing_orders": Order.objects.filter(status='preparing').count(),
+        "completed_orders": Order.objects.filter(status='completed').count(),
+        "total_staff": Staff.objects.filter(is_active=True).count(),
+        "total_products": Product.objects.count(),
+        **analytics_data,  # Unpack cached data
     }
     
     return render(request, 'dashboard.html', context)
@@ -87,6 +165,7 @@ def revenue_forecast(request):
     
     context = {
         'prediction_data': prediction_data,
+        'prediction_data_json': json.dumps(prediction_data),
         'summary': summary,
         'days_ahead': days_ahead,
     }
@@ -125,6 +204,7 @@ def trends(request):
     
     context = {
         'analysis': analysis,
+        'analysis_json': json.dumps(analysis),
         'period_days': period_days,
     }
     

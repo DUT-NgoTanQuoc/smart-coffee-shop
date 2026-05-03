@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Order, OrderItem, Payment
+from .models import DiscountCode, Order, OrderItem, Payment
 
 
 class OrderItemInline(admin.TabularInline):
@@ -60,3 +60,19 @@ class PaymentAdmin(admin.ModelAdmin):
     list_filter = ['payment_method', 'payment_date']
     search_fields = ['order__order_number']
     autocomplete_fields = ['order']
+
+
+@admin.register(DiscountCode)
+class DiscountCodeAdmin(admin.ModelAdmin):
+    list_display = [
+        'code',
+        'name',
+        'discount_percent',
+        'min_order_amount',
+        'max_discount_amount',
+        'is_active',
+        'valid_from',
+        'valid_to',
+    ]
+    list_filter = ['is_active', 'valid_from', 'valid_to']
+    search_fields = ['code', 'name']

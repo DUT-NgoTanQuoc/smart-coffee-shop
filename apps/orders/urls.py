@@ -8,6 +8,7 @@ from .views_dashboard import (
 urlpatterns = [
     # Existing order views
     path('create/', views.create_order, name='create_order'),
+    path('validate-discount/', views.validate_discount_code, name='validate_discount_code'),
     path('list/', views.order_list, name='order_list'),
     path('<int:order_id>/', views.order_detail, name='order_detail'),
     path('search-customer/', views.search_customer, name='search_customer'),

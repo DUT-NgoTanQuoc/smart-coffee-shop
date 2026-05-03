@@ -1,6 +1,9 @@
+from datetime import datetime
+from decimal import Decimal
+
+from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils import timezone
-from datetime import datetime
 
 
 class Order(models.Model):
@@ -74,7 +77,7 @@ class Order(models.Model):
     def save(self, *args, **kwargs):
         """Tự động tạo order_number / Auto-generate order_number"""
         if not self.order_number:
-            today = datetime.now()
+            today = timezone.localtime(timezone.now())
             prefix = f'ORD{today.strftime("%Y%m%d")}'
             
             # Lấy đơn hàng cuối cùng trong ngày
@@ -192,3 +195,72 @@ class Payment(models.Model):
 
     def __str__(self):
         return f'{self.order.order_number} - {self.get_payment_method_display()}'
+
+
+class DiscountCode(models.Model):
+    """
+    Discount code model used by POS.
+    """
+
+    code = models.CharField(max_length=50, unique=True, verbose_name='Mã giảm giá')
+    name = models.CharField(max_length=120, blank=True, null=True, verbose_name='Tên chương trình')
+    description = models.TextField(blank=True, null=True, verbose_name='Mô tả')
+    discount_percent = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        verbose_name='Phần trăm giảm',
+    )
+    min_order_amount = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=0,
+        verbose_name='Giá trị đơn tối thiểu',
+    )
+    max_discount_amount = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        blank=True,
+        null=True,
+        verbose_name='Giảm tối đa',
+    )
+    valid_from = models.DateTimeField(blank=True, null=True, verbose_name='Hiệu lực từ')
+    valid_to = models.DateTimeField(blank=True, null=True, verbose_name='Hiệu lực đến')
+    is_active = models.BooleanField(default=True, verbose_name='Đang hoạt động')
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='Ngày tạo')
+
+    class Meta:
+        db_table = 'discount_codes'
+        verbose_name = 'Mã giảm giá'
+        verbose_name_plural = 'Mã giảm giá'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f'{self.code} ({self.discount_percent}%)'
+
+    def clean(self):
+        if self.discount_percent <= 0 or self.discount_percent > 100:
+            raise ValidationError('Phần trăm giảm phải > 0 và <= 100')
+        if self.max_discount_amount is not None and self.max_discount_amount < 0:
+            raise ValidationError('Giảm tối đa không được âm')
+        if self.min_order_amount < 0:
+            raise ValidationError('Giá trị đơn tối thiểu không được âm')
+
+    def is_currently_valid(self):
+        if not self.is_active:
+            return False
+        now = timezone.now()
+        if self.valid_from and now < self.valid_from:
+            return False
+        if self.valid_to and now > self.valid_to:
+            return False
+        return True
+
+    def calculate_discount(self, total_amount):
+        total = Decimal(str(total_amount or 0))
+        if total < self.min_order_amount:
+            return Decimal('0')
+
+        discount = (total * self.discount_percent) / Decimal('100')
+        if self.max_discount_amount is not None:
+            discount = min(discount, self.max_discount_amount)
+        return max(Decimal('0'), discount.quantize(Decimal('0.01')))

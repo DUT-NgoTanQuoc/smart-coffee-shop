@@ -1,267 +1,513 @@
 {% extends 'base.html' %}
 {% load static %}
 
-{% block title %}Dashboard - Smart Coffee Shop{% endblock %}
+{% block title %}Admin Dashboard - Smart Coffee Shop{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h2><i class="bi bi-speedometer2"></i> Dashboard</h2>
-    <div class="text-muted">
-        <i class="bi bi-calendar3"></i> {{ today|date:"d/m/Y" }}
-    </div>
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
+    <h2 class="mb-0"><i class="bi bi-speedometer2"></i> Admin Dashboard</h2>
+    <div class="text-muted"><i class="bi bi-calendar3"></i> {{ today|date:"d/m/Y" }}</div>
 </div>
 
-<!-- Stat Cards -->
-<div class="row mb-4">
-    <div class="col-xl-3 col-md-6 mb-4">
-        <div class="card border-left-primary shadow h-100 py-2">
-            <div class="card-body">
-                <div class="row no-gutters align-items-center">
-                    <div class="col mr-2">
-                        <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
-                            Doanh thu hôm nay
-                        </div>
-                        <div class="h5 mb-0 font-weight-bold text-gray-800">
-                            {{ today_revenue|floatformat:0 }}đ
-                        </div>
+<ul class="nav nav-pills mb-3" id="dashboardTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="overview-tab" data-bs-toggle="tab" data-bs-target="#overview-pane" type="button" role="tab" aria-controls="overview-pane" aria-selected="true">Tổng quan</button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="ai-tab" data-bs-toggle="tab" data-bs-target="#ai-pane" type="button" role="tab" aria-controls="ai-pane" aria-selected="false">AI phân tích</button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="stock-tab" data-bs-toggle="tab" data-bs-target="#stock-pane" type="button" role="tab" aria-controls="stock-pane" aria-selected="false">Tồn kho</button>
+    </li>
+</ul>
+
+<div class="tab-content" id="dashboardTabsContent">
+    <div class="tab-pane fade show active" id="overview-pane" role="tabpanel" aria-labelledby="overview-tab" tabindex="0">
+        <div class="row g-3 mb-4">
+            <div class="col-xl-3 col-md-6">
+                <div class="card border-left-primary shadow-sm h-100 py-2">
+                    <div class="card-body">
+                        <div class="text-xs text-primary text-uppercase mb-1">Doanh thu hôm nay</div>
+                        <div class="h4 mb-1">{{ today_revenue|floatformat:0 }}đ</div>
+                        <small class="text-muted">Tổng doanh thu: {{ total_revenue_all|floatformat:0 }}đ</small>
                     </div>
-                    <div class="col-auto">
-                        <i class="bi bi-currency-dollar fa-2x text-gray-300"></i>
+                </div>
+            </div>
+            <div class="col-xl-3 col-md-6">
+                <div class="card border-left-success shadow-sm h-100 py-2">
+                    <div class="card-body">
+                        <div class="text-xs text-success text-uppercase mb-1">Đơn hàng hôm nay</div>
+                        <div class="h4 mb-1">{{ today_orders }}</div>
+                        <small class="text-muted">Tổng đơn: {{ total_orders_all }}</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-xl-3 col-md-6">
+                <div class="card border-left-warning shadow-sm h-100 py-2">
+                    <div class="card-body">
+                        <div class="text-xs text-warning text-uppercase mb-1">Cảnh báo tồn kho</div>
+                        <div class="h4 mb-1">{{ low_stock_count }}</div>
+                        <small class="text-muted">{{ revenue_summary.message }}</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-xl-3 col-md-6">
+                <div class="card border-left-info shadow-sm h-100 py-2">
+                    <div class="card-body">
+                        <div class="text-xs text-info text-uppercase mb-1">Khách hàng</div>
+                        <div class="h4 mb-1">{{ total_customers }}</div>
+                        <small class="text-muted">Nhân viên: {{ total_staff }} | Sản phẩm: {{ total_products }}</small>
                     </div>
                 </div>
             </div>
         </div>
-    </div>
 
-    <div class="col-xl-3 col-md-6 mb-4">
-        <div class="card border-left-success shadow h-100 py-2">
-            <div class="card-body">
-                <div class="row no-gutters align-items-center">
-                    <div class="col mr-2">
-                        <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
-                            Đơn hàng hôm nay
-                        </div>
-                        <div class="h5 mb-0 font-weight-bold text-gray-800">
-                            {{ today_orders }}
-                        </div>
+        <div class="row g-3 mb-4">
+            <div class="col-md-4">
+                <div class="card shadow-sm h-100">
+                    <div class="card-body text-center">
+                        <h6 class="text-danger">Chờ xử lý</h6>
+                        <div class="display-6">{{ pending_orders }}</div>
                     </div>
-                    <div class="col-auto">
-                        <i class="bi bi-receipt fa-2x text-gray-300"></i>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card shadow-sm h-100">
+                    <div class="card-body text-center">
+                        <h6 class="text-warning">Đang chế biến</h6>
+                        <div class="display-6">{{ preparing_orders }}</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card shadow-sm h-100">
+                    <div class="card-body text-center">
+                        <h6 class="text-success">Hoàn thành</h6>
+                        <div class="display-6">{{ completed_orders }}</div>
                     </div>
                 </div>
             </div>
         </div>
-    </div>
 
-    <div class="col-xl-3 col-md-6 mb-4">
-        <div class="card border-left-warning shadow h-100 py-2">
-            <div class="card-body">
-                <div class="row no-gutters align-items-center">
-                    <div class="col mr-2">
-                        <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
-                            Cảnh báo tồn kho
-                        </div>
-                        <div class="h5 mb-0 font-weight-bold text-gray-800">
-                            {{ low_stock_count }}
-                        </div>
+        <div class="row g-3 mb-4">
+            <div class="col-xl-8">
+                <div class="card shadow-sm h-100">
+                    <div class="card-header">
+                        <h6 class="m-0 text-primary"><i class="bi bi-graph-up"></i> Doanh thu 7 ngày qua + dự báo 7 ngày tới</h6>
                     </div>
-                    <div class="col-auto">
-                        <i class="bi bi-exclamation-triangle fa-2x text-gray-300"></i>
+                    <div class="card-body chart-box-lg">
+                        <canvas id="revenueChart"></canvas>
                     </div>
                 </div>
             </div>
-        </div>
-    </div>
-
-    <div class="col-xl-3 col-md-6 mb-4">
-        <div class="card border-left-info shadow h-100 py-2">
-            <div class="card-body">
-                <div class="row no-gutters align-items-center">
-                    <div class="col mr-2">
-                        <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
-                            Tổng khách hàng
+            <div class="col-xl-4">
+                <div class="card shadow-sm h-100">
+                    <div class="card-header">
+                        <h6 class="m-0 text-primary"><i class="bi bi-star"></i> Top 5 bán chạy</h6>
+                    </div>
+                    <div class="card-body d-flex flex-column">
+                        <div class="chart-box-sm mb-3">
+                            <canvas id="bestsellerChart"></canvas>
                         </div>
-                        <div class="h5 mb-0 font-weight-bold text-gray-800">
-                            {{ total_customers }}
-                        </div>
-                    </div>
-                    <div class="col-auto">
-                        <i class="bi bi-people fa-2x text-gray-300"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Charts Row -->
-<div class="row">
-    <!-- Revenue Chart -->
-    <div class="col-xl-8 col-lg-7 mb-4">
-        <div class="card shadow">
-            <div class="card-header py-3">
-                <h6 class="m-0 font-weight-bold text-primary">
-                    <i class="bi bi-graph-up"></i> Doanh thu 7 ngày qua
-                </h6>
-            </div>
-            <div class="card-body">
-                <canvas id="revenueChart" height="80"></canvas>
-            </div>
-        </div>
-    </div>
-
-    <!-- Bestsellers -->
-    <div class="col-xl-4 col-lg-5 mb-4">
-        <div class="card shadow">
-            <div class="card-header py-3">
-                <h6 class="m-0 font-weight-bold text-primary">
-                    <i class="bi bi-star"></i> Top 5 Bán chạy
-                </h6>
-            </div>
-            <div class="card-body">
-                <div class="list-group list-group-flush">
-                    {% for product in bestsellers %}
-                    <div class="list-group-item d-flex justify-content-between align-items-center">
-                        <div>
-                            <strong>{{ product.product_name }}</strong>
-                            <br>
-                            <small class="text-muted">Đã bán: {{ product.quantity_sold }}</small>
-                        </div>
-                        <span class="badge bg-primary rounded-pill">
-                            {{ product.revenue|floatformat:0 }}đ
-                        </span>
-                    </div>
-                    {% empty %}
-                    <div class="text-center text-muted py-4">
-                        Chưa có dữ liệu
-                    </div>
-                    {% endfor %}
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Low Stock Alerts -->
-{% if low_stock_alerts %}
-<div class="row">
-    <div class="col-12">
-        <div class="card shadow mb-4">
-            <div class="card-header py-3">
-                <h6 class="m-0 font-weight-bold text-warning">
-                    <i class="bi bi-exclamation-triangle"></i> Cảnh báo nguyên liệu sắp hết
-                </h6>
-            </div>
-            <div class="card-body">
-                <div class="table-responsive">
-                    <table class="table table-bordered">
-                        <thead>
-                            <tr>
-                                <th>Nguyên liệu</th>
-                                <th>Tồn kho</th>
-                                <th>Tiêu thụ/ngày</th>
-                                <th>Còn (ngày)</th>
-                                <th>Mức độ</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for alert in low_stock_alerts %}
-                            <tr>
-                                <td>{{ alert.ingredient.name }}</td>
-                                <td>{{ alert.current_stock }} {{ alert.unit }}</td>
-                                <td>{{ alert.daily_consumption }} {{ alert.unit }}</td>
-                                <td>{{ alert.days_until_stockout|default:"N/A" }}</td>
-                                <td>
-                                    {% if alert.priority == 'HIGH' %}
-                                        <span class="badge bg-danger">Cao</span>
-                                    {% elif alert.priority == 'MEDIUM' %}
-                                        <span class="badge bg-warning">Trung bình</span>
-                                    {% else %}
-                                        <span class="badge bg-info">Thấp</span>
-                                    {% endif %}
-                                </td>
-                            </tr>
+                        <div class="list-group list-group-flush flex-grow-1 overflow-auto" style="max-height: 250px;">
+                            {% for product in bestsellers %}
+                            <div class="list-group-item d-flex justify-content-between align-items-center px-0">
+                                <div>
+                                    <strong>{{ product.product_name }}</strong>
+                                    <br>
+                                    <small class="text-muted">Đã bán: {{ product.quantity_sold }}</small>
+                                </div>
+                                <span class="badge bg-primary rounded-pill">{{ product.revenue|floatformat:0 }}đ</span>
+                            </div>
+                            {% empty %}
+                            <div class="text-center text-muted py-3">Chưa có dữ liệu</div>
                             {% endfor %}
-                        </tbody>
-                    </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card shadow-sm">
+            <div class="card-header">
+                <h6 class="m-0 text-primary"><i class="bi bi-lightning"></i> Thao tác nhanh</h6>
+            </div>
+            <div class="card-body">
+                <a href="{% url 'order_list' %}" class="btn btn-primary me-2 mb-2"><i class="bi bi-receipt"></i> Quản lý đơn hàng</a>
+                <a href="{% url 'ingredient_list' %}" class="btn btn-warning me-2 mb-2"><i class="bi bi-box-seam"></i> Quản lý nguyên liệu</a>
+                <a href="{% url 'staff_list' %}" class="btn btn-info text-white me-2 mb-2"><i class="bi bi-people"></i> Quản lý nhân viên</a>
+                <a href="{% url 'product_list' %}" class="btn btn-secondary me-2 mb-2"><i class="bi bi-cup"></i> Quản lý sản phẩm</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="tab-pane fade" id="ai-pane" role="tabpanel" aria-labelledby="ai-tab" tabindex="0">
+        <div class="row g-3 mb-4">
+            <div class="col-xl-4">
+                <div class="card shadow-sm h-100">
+                    <div class="card-header">
+                        <h6 class="m-0 text-primary"><i class="bi bi-cash-stack"></i> Tổng quan dự báo 30 ngày</h6>
+                    </div>
+                    <div class="card-body">
+                        <p class="mb-2"><strong>Tổng doanh thu dự kiến:</strong> {{ revenue_summary.total_predicted|floatformat:0 }}đ</p>
+                        <p class="mb-2"><strong>Trung bình/ngày:</strong> {{ revenue_summary.average_daily|floatformat:0 }}đ</p>
+                        <p class="mb-3"><strong>Xu hướng:</strong>
+                            {% if revenue_summary.trend == 'tăng' %}
+                                <span class="badge bg-success">Tăng</span>
+                            {% elif revenue_summary.trend == 'giảm' %}
+                                <span class="badge bg-danger">Giảm</span>
+                            {% else %}
+                                <span class="badge bg-secondary">Ổn định</span>
+                            {% endif %}
+                        </p>
+                        <p class="text-muted mb-0">{{ revenue_summary.message }}</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-xl-8">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <div class="card shadow-sm h-100">
+                            <div class="card-header">
+                                <h6 class="m-0 text-primary"><i class="bi bi-clock-history"></i> Giờ cao điểm (30 ngày)</h6>
+                            </div>
+                            <div class="card-body chart-box-md">
+                                <canvas id="peakHoursChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card shadow-sm h-100">
+                            <div class="card-header">
+                                <h6 class="m-0 text-primary"><i class="bi bi-pie-chart"></i> Doanh thu theo danh mục</h6>
+                            </div>
+                            <div class="card-body chart-box-md">
+                                <canvas id="categoryChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row g-3">
+            <div class="col-lg-6">
+                <div class="card shadow-sm">
+                    <div class="card-header">
+                        <h6 class="m-0 text-primary"><i class="bi bi-people"></i> Phân tầng khách hàng</h6>
+                    </div>
+                    <div class="card-body chart-box-md">
+                        <canvas id="customerTierChart"></canvas>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-6">
+                <div class="card shadow-sm h-100">
+                    <div class="card-header">
+                        <h6 class="m-0 text-primary"><i class="bi bi-info-circle"></i> Gợi ý vận hành</h6>
+                    </div>
+                    <div class="card-body">
+                        <ul class="mb-0">
+                            <li>Ưu tiên nhân sự vào khung giờ cao điểm theo biểu đồ.</li>
+                            <li>Theo dõi danh mục có doanh thu cao để tối ưu khuyến mãi.</li>
+                            <li>So sánh doanh thu thực tế với dự báo để điều chỉnh kế hoạch tuần.</li>
+                        </ul>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
-</div>
-{% endif %}
 
-<!-- Quick Actions -->
-<div class="row">
-    <div class="col-12">
-        <div class="card shadow">
-            <div class="card-header py-3">
-                <h6 class="m-0 font-weight-bold text-primary">
-                    <i class="bi bi-lightning"></i> Thao tác nhanh
-                </h6>
+    <div class="tab-pane fade" id="stock-pane" role="tabpanel" aria-labelledby="stock-tab" tabindex="0">
+        <div class="row g-3 mb-4">
+            <div class="col-xl-7">
+                <div class="card shadow-sm">
+                    <div class="card-header">
+                        <h6 class="m-0 text-warning"><i class="bi bi-exclamation-triangle"></i> Nguyên liệu sắp hết và gợi ý nhập</h6>
+                    </div>
+                    <div class="card-body p-0">
+                        {% if low_stock_alerts %}
+                        <div class="table-responsive" style="max-height: 420px; overflow-y: auto;">
+                            <table class="table table-sm mb-0 align-middle">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Nguyên liệu</th>
+                                        <th>Tồn hiện tại</th>
+                                        <th>Gợi ý nhập</th>
+                                        <th>Hết sau (ngày)</th>
+                                        <th>Ưu tiên</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for alert in low_stock_alerts %}
+                                    <tr>
+                                        <td>{{ alert.ingredient.name }}</td>
+                                        <td>{{ alert.current_stock }} {{ alert.unit }}</td>
+                                        <td><strong>{{ alert.recommended_quantity }} {{ alert.unit }}</strong></td>
+                                        <td>{{ alert.days_until_stockout|default:"-" }}</td>
+                                        <td>
+                                            {% if alert.priority == 'HIGH' %}
+                                            <span class="badge bg-danger">Cao</span>
+                                            {% elif alert.priority == 'MEDIUM' %}
+                                            <span class="badge bg-warning text-dark">Trung bình</span>
+                                            {% else %}
+                                            <span class="badge bg-info">Thấp</span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% else %}
+                        <p class="text-muted p-3 mb-0">Không có cảnh báo tồn kho.</p>
+                        {% endif %}
+                    </div>
+                </div>
             </div>
-            <div class="card-body">
-                <a href="{% url 'create_order' %}" class="btn btn-primary me-2">
-                    <i class="bi bi-cart-plus"></i> Tạo đơn hàng
-                </a>
-                <a href="{% url 'product_list' %}" class="btn btn-secondary me-2">
-                    <i class="bi bi-cup"></i> Xem sản phẩm
-                </a>
-                <a href="{% url 'ingredient_list' %}" class="btn btn-warning me-2">
-                    <i class="bi bi-box-seam"></i> Quản lý kho
-                </a>
-                <a href="{% url 'revenue_forecast' %}" class="btn btn-success">
-                    <i class="bi bi-graph-up"></i> Dự đoán AI
-                </a>
+            <div class="col-xl-5">
+                <div class="card shadow-sm h-100">
+                    <div class="card-header">
+                        <h6 class="m-0 text-primary"><i class="bi bi-bar-chart"></i> So sánh tồn kho và mức đề xuất nhập</h6>
+                    </div>
+                    <div class="card-body chart-box-lg">
+                        <canvas id="stockRecommendationChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card shadow-sm">
+            <div class="card-body d-flex flex-wrap gap-2">
+                <a href="{% url 'ingredient_list' %}" class="btn btn-warning"><i class="bi bi-box-seam"></i> Đi đến quản lý nguyên liệu</a>
+                <a href="{% url 'order_list' %}" class="btn btn-outline-primary"><i class="bi bi-receipt"></i> Đối chiếu với đơn hàng</a>
             </div>
         </div>
     </div>
 </div>
+{% endblock %}
 
+{% block extra_css %}
+<style>
+    .chart-box-lg {
+        height: 320px;
+    }
+
+    .chart-box-md {
+        height: 280px;
+    }
+
+    .chart-box-sm {
+        height: 220px;
+    }
+</style>
 {% endblock %}
 
 {% block extra_js %}
 <script>
-// Revenue Chart
-const ctx = document.getElementById('revenueChart').getContext('2d');
 const revenueData = {{ revenue_chart|safe }};
+const bestsellerData = {{ bestseller_chart|safe }};
+const peakHoursData = {{ peak_hours_chart|safe }};
+const categoryData = {{ category_chart|safe }};
+const customerTierData = {{ customer_tier_chart|safe }};
+const ingredientData = {{ ingredient_chart|safe }};
 
-new Chart(ctx, {
-    type: 'line',
-    data: {
-        labels: revenueData.labels || [],
-        datasets: [{
-            label: 'Doanh thu thực tế',
-            data: revenueData.historical || [],
-            borderColor: 'rgb(75, 192, 192)',
-            backgroundColor: 'rgba(75, 192, 192, 0.2)',
-            tension: 0.1
-        }, {
-            label: 'Dự đoán',
-            data: revenueData.predicted || [],
-            borderColor: 'rgb(255, 99, 132)',
-            backgroundColor: 'rgba(255, 99, 132, 0.2)',
-            borderDash: [5, 5],
-            tension: 0.1
-        }]
-    },
-    options: {
-        responsive: true,
-        maintainAspectRatio: true,
-        plugins: {
-            legend: {
-                position: 'top',
-            },
-            title: {
-                display: false
-            }
+const chartInstances = {};
+
+function createRevenueChart() {
+    if (chartInstances.revenue) return;
+    const revenueEl = document.getElementById('revenueChart');
+    if (!revenueEl) return;
+
+    chartInstances.revenue = new Chart(revenueEl.getContext('2d'), {
+        type: 'line',
+        data: {
+            labels: revenueData.labels || [],
+            datasets: [
+                {
+                    label: 'Doanh thu thực tế',
+                    data: revenueData.historical || [],
+                    borderColor: '#2cb1bc',
+                    backgroundColor: 'rgba(44,177,188,0.2)',
+                    tension: 0.25,
+                    fill: false,
+                },
+                {
+                    label: 'Dự đoán',
+                    data: revenueData.predicted || [],
+                    borderColor: '#ff6384',
+                    backgroundColor: 'rgba(255,99,132,0.2)',
+                    borderDash: [6, 4],
+                    tension: 0.25,
+                    fill: false,
+                }
+            ]
         },
-        scales: {
-            y: {
-                beginAtZero: true
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: { y: { beginAtZero: true } }
+        }
+    });
+}
+
+function createBestsellerChart() {
+    if (chartInstances.bestseller) return;
+    const bestsellerEl = document.getElementById('bestsellerChart');
+    if (!bestsellerEl) return;
+
+    chartInstances.bestseller = new Chart(bestsellerEl.getContext('2d'), {
+        type: 'bar',
+        data: {
+            labels: bestsellerData.labels || [],
+            datasets: [{
+                label: 'Số lượng bán',
+                data: bestsellerData.quantities || [],
+                backgroundColor: 'rgba(54,162,235,0.75)'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: { y: { beginAtZero: true } }
+        }
+    });
+}
+
+function createPeakHoursChart() {
+    if (chartInstances.peak) return;
+    const peakEl = document.getElementById('peakHoursChart');
+    if (!peakEl) return;
+
+    chartInstances.peak = new Chart(peakEl.getContext('2d'), {
+        type: 'line',
+        data: {
+            labels: peakHoursData.labels || [],
+            datasets: [{
+                label: 'Số đơn',
+                data: peakHoursData.data || [],
+                borderColor: '#198754',
+                backgroundColor: 'rgba(25,135,84,0.2)',
+                tension: 0.25,
+                fill: true,
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: { y: { beginAtZero: true } }
+        }
+    });
+}
+
+function createCategoryChart() {
+    if (chartInstances.category) return;
+    const categoryEl = document.getElementById('categoryChart');
+    if (!categoryEl) return;
+
+    chartInstances.category = new Chart(categoryEl.getContext('2d'), {
+        type: 'bar',
+        data: {
+            labels: categoryData.labels || [],
+            datasets: [{
+                label: 'Doanh thu',
+                data: categoryData.revenues || [],
+                backgroundColor: 'rgba(255,159,64,0.75)'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: { y: { beginAtZero: true } }
+        }
+    });
+}
+
+function createCustomerTierChart() {
+    if (chartInstances.tier) return;
+    const tierEl = document.getElementById('customerTierChart');
+    if (!tierEl) return;
+
+    chartInstances.tier = new Chart(tierEl.getContext('2d'), {
+        type: 'doughnut',
+        data: {
+            labels: customerTierData.labels || [],
+            datasets: [{
+                data: customerTierData.data || [],
+                backgroundColor: ['#0d6efd', '#20c997', '#ffc107', '#dc3545', '#6f42c1']
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { position: 'bottom' } }
+        }
+    });
+}
+
+function createStockRecommendationChart() {
+    if (chartInstances.stock) return;
+    const stockEl = document.getElementById('stockRecommendationChart');
+    if (!stockEl) return;
+
+    const labels = ingredientData.labels || [];
+    const currentStock = ingredientData.current_stock || [];
+    const recommendedQty = ingredientData.recommended_quantity || [];
+
+    chartInstances.stock = new Chart(stockEl.getContext('2d'), {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: 'Tồn hiện tại',
+                    data: currentStock,
+                    backgroundColor: 'rgba(13,110,253,0.75)',
+                },
+                {
+                    label: 'Mức đề xuất nhập',
+                    data: recommendedQty,
+                    backgroundColor: 'rgba(255,193,7,0.75)',
+                },
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: { beginAtZero: true },
+                x: { ticks: { maxRotation: 60, minRotation: 20 } }
             }
         }
-    }
+    });
+}
+
+function resizeVisibleCharts() {
+    Object.values(chartInstances).forEach((chart) => chart.resize());
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    createRevenueChart();
+    createBestsellerChart();
+
+    document.querySelectorAll('#dashboardTabs button[data-bs-toggle="tab"]').forEach((tabBtn) => {
+        tabBtn.addEventListener('shown.bs.tab', function(event) {
+            const target = event.target.getAttribute('data-bs-target');
+
+            if (target === '#ai-pane') {
+                createPeakHoursChart();
+                createCategoryChart();
+                createCustomerTierChart();
+            }
+
+            if (target === '#stock-pane') {
+                createStockRecommendationChart();
+            }
+
+            setTimeout(resizeVisibleCharts, 120);
+        });
+    });
 });
 </script>
 {% endblock %}

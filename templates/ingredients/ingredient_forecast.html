@@ -1,0 +1,187 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Gợi ý & dự báo nguyên liệu - Smart Coffee Shop{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
+    <div>
+        <h2 class="mb-1"><i class="bi bi-lightbulb"></i> Gợi ý & dự báo nguyên liệu</h2>
+        <small class="text-muted">Dự báo tiêu thụ, cảnh báo thiếu hàng và kế hoạch nhập tháng sau.</small>
+    </div>
+    <a href="{% url 'ingredient_list' %}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i> Về danh sách nguyên liệu
+    </a>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="card border-start border-danger border-4">
+            <div class="card-body">
+                <div class="text-muted small">Cần nhập gấp</div>
+                <div class="h4 mb-0">{{ prediction_summary.high_priority }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-start border-warning border-4">
+            <div class="card-body">
+                <div class="text-muted small">Cần nhập sớm</div>
+                <div class="h4 mb-0">{{ prediction_summary.medium_priority }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-start border-info border-4">
+            <div class="card-body">
+                <div class="text-muted small">Ổn định</div>
+                <div class="h4 mb-0">{{ prediction_summary.low_priority }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-start border-success border-4">
+            <div class="card-body">
+                <div class="text-muted small">Kế hoạch nhập tháng {{ next_month_label }}</div>
+                <div class="h6 mb-0">{{ next_month_days }} ngày</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card shadow mb-4">
+    <div class="card-header bg-light">
+        <h5 class="mb-0"><i class="bi bi-lightbulb"></i> Gợi ý nhập cho tháng {{ next_month_label }}</h5>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-lg-5 mb-3 mb-lg-0">
+                <canvas id="nextMonthImportChart" height="220"></canvas>
+            </div>
+            <div class="col-lg-7">
+                <div class="table-responsive" style="max-height: 300px; overflow-y: auto;">
+                    <table class="table table-sm table-bordered mb-0 align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Nguyên liệu</th>
+                                <th>Tồn</th>
+                                <th>Tiêu thụ/ngày</th>
+                                <th>Nhu cầu tháng</th>
+                                <th>Nên nhập thêm</th>
+                                <th>Chi phí dự kiến</th>
+                                <th>Mức độ</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in monthly_import_suggestions %}
+                            <tr>
+                                <td><strong>{{ row.ingredient.name }}</strong></td>
+                                <td>{{ row.current_stock|floatformat:2 }} {{ row.unit }}</td>
+                                <td>{{ row.daily_consumption|floatformat:2 }} {{ row.unit }}</td>
+                                <td>{{ row.monthly_need|floatformat:2 }} {{ row.unit }}</td>
+                                <td><strong>{{ row.suggested_import|floatformat:2 }} {{ row.unit }}</strong></td>
+                                <td>{{ row.estimated_cost|floatformat:0 }}đ</td>
+                                <td>
+                                    {% if row.priority == 'HIGH' %}
+                                        <span class="badge bg-danger">Cao</span>
+                                    {% elif row.priority == 'MEDIUM' %}
+                                        <span class="badge bg-warning text-dark">Trung bình</span>
+                                    {% else %}
+                                        <span class="badge bg-info">Thấp</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="7" class="text-center text-muted py-3">Không có gợi ý nhập thêm cho tháng sau.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card shadow">
+    <div class="card-header bg-light">
+        <h5 class="mb-0"><i class="bi bi-activity"></i> Dự báo tồn kho hiện tại (top 30)</h5>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive" style="max-height: 360px; overflow-y: auto;">
+            <table class="table table-sm table-hover mb-0 align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th>Nguyên liệu</th>
+                        <th>Tồn kho</th>
+                        <th>Tiêu thụ/ngày</th>
+                        <th>Còn (ngày)</th>
+                        <th>Ưu tiên</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for p in predictions %}
+                    <tr>
+                        <td>{{ p.ingredient.name }}</td>
+                        <td>{{ p.current_stock|floatformat:2 }} {{ p.unit }}</td>
+                        <td>{{ p.daily_consumption|floatformat:2 }} {{ p.unit }}</td>
+                        <td>{{ p.days_until_stockout|default:"-" }}</td>
+                        <td>
+                            {% if p.priority == 'HIGH' %}
+                                <span class="badge bg-danger">Cao</span>
+                            {% elif p.priority == 'MEDIUM' %}
+                                <span class="badge bg-warning text-dark">Trung bình</span>
+                            {% else %}
+                                <span class="badge bg-info">Thấp</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="text-center text-muted py-3">Chưa có dữ liệu dự báo.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const importChartEl = document.getElementById('nextMonthImportChart');
+if (importChartEl) {
+    const chartData = {{ import_chart_json|safe }};
+    new Chart(importChartEl.getContext('2d'), {
+        type: 'bar',
+        data: {
+            labels: chartData.labels || [],
+            datasets: [
+                {
+                    label: 'Nhu cầu tháng',
+                    data: chartData.monthly_need || [],
+                    backgroundColor: 'rgba(54, 162, 235, 0.7)',
+                    borderColor: 'rgba(54, 162, 235, 1)',
+                    borderWidth: 1
+                },
+                {
+                    label: 'Nên nhập thêm',
+                    data: chartData.suggested_import || [],
+                    backgroundColor: 'rgba(255, 159, 64, 0.7)',
+                    borderColor: 'rgba(255, 159, 64, 1)',
+                    borderWidth: 1
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { position: 'top' } },
+            scales: { y: { beginAtZero: true } }
+        }
+    });
+}
+</script>
+{% endblock %}

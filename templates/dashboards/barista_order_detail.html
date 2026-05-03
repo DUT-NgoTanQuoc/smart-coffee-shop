@@ -29,7 +29,7 @@
                         </div>
                         <div class="col-md-6 text-end">
                             <p><strong>Nhân viên:</strong> {% if order.staff %}{{ order.staff.name }}{% else %}-{% endif %}</p>
-                            <p><strong>Giờ tạo:</strong> {{ order.created_at|date:"H:i:s" }}</p>
+                            <p><strong>Giờ tạo:</strong> {{ order.order_date|date:"H:i:s" }}</p>
                         </div>
                     </div>
                 </div>
@@ -72,7 +72,7 @@
                                 <tr>
                                     <td>{{ recipe.ingredient.name }}</td>
                                     <td class="text-end">
-                                        <strong>{{ recipe.quantity|floatformat:1 }}{{ recipe.ingredient.unit }}</strong>
+                                        <strong>{% if item.size == 'S' %}{{ recipe.quantity_small|floatformat:1 }}{% elif item.size == 'L' %}{{ recipe.quantity_large|floatformat:1 }}{% else %}{{ recipe.quantity_medium|floatformat:1 }}{% endif %}{{ recipe.ingredient.unit }}</strong>
                                     </td>
                                     <td class="text-end">
                                         <span class="{% if recipe.ingredient.quantity < recipe.ingredient.min_quantity %}badge bg-danger{% else %}badge bg-success{% endif %}">
@@ -93,10 +93,10 @@
                     <p class="mt-2"><strong>Kích cỡ:</strong> {{ item.get_size_display }}</p>
                     {% endif %}
                     
-                    {% if item.customizations.all %}
+                    {% if item.customizations %}
                     <p><strong>Tùy chỉnh:</strong></p>
                     <ul class="small">
-                        {% for custom in item.customizations.all %}
+                        {% for custom in item.customizations %}
                         <li>{{ custom.name }}</li>
                         {% endfor %}
                     </ul>
@@ -197,3 +197,4 @@ function getCookie(name) {
 }
 </script>
 {% endblock %}
+

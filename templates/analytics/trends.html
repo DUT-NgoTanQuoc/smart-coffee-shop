@@ -1,0 +1,138 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Phân tích xu hướng{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-bar-chart-line"></i> Phân tích xu hướng</h2>
+</div>
+
+<div class="row mb-4">
+    <div class="col-lg-6">
+        <div class="card shadow-sm">
+            <div class="card-header">
+                <strong>Top sản phẩm bán chạy</strong>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-sm mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Sản phẩm</th>
+                                <th>Số lượng</th>
+                                <th>Doanh thu</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in analysis.bestselling_products %}
+                            <tr>
+                                <td>{{ item.product_name }}</td>
+                                <td>{{ item.quantity_sold }}</td>
+                                <td>{{ item.revenue|floatformat:0 }}đ</td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="3" class="text-center text-muted py-3">Chưa có dữ liệu</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-6">
+        <div class="card shadow-sm">
+            <div class="card-header">
+                <strong>Giờ cao điểm</strong>
+            </div>
+            <div class="card-body">
+                <canvas id="peakHoursChart" height="120"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-6 mb-4">
+        <div class="card shadow-sm">
+            <div class="card-header">
+                <strong>Phân bố hạng khách hàng</strong>
+            </div>
+            <div class="card-body">
+                <canvas id="tierChart" height="120"></canvas>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-6 mb-4">
+        <div class="card shadow-sm">
+            <div class="card-header">
+                <strong>Doanh số theo size</strong>
+            </div>
+            <div class="card-body">
+                <canvas id="sizeChart" height="120"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const analysisData = JSON.parse('{{ analysis_json|escapejs }}');
+const peakHours = analysisData.peak_hours || {};
+const customerInsights = analysisData.customer_insights || {};
+const salesBySize = analysisData.sales_by_size || {};
+
+const peakEl = document.getElementById('peakHoursChart');
+if (peakEl) {
+    new Chart(peakEl.getContext('2d'), {
+        type: 'line',
+        data: {
+            labels: peakHours.labels || [],
+            datasets: [{
+                label: 'Số đơn',
+                data: peakHours.data || [],
+                borderColor: '#0d6efd',
+                backgroundColor: 'rgba(13, 110, 253, 0.2)',
+                tension: 0.2
+            }]
+        },
+        options: { responsive: true }
+    });
+}
+
+const tierEl = document.getElementById('tierChart');
+if (tierEl) {
+    new Chart(tierEl.getContext('2d'), {
+        type: 'doughnut',
+        data: {
+            labels: customerInsights.tier_distribution ? customerInsights.tier_distribution.labels : [],
+            datasets: [{
+                data: customerInsights.tier_distribution ? customerInsights.tier_distribution.data : [],
+                backgroundColor: ['#198754', '#0d6efd', '#ffc107', '#dc3545']
+            }]
+        },
+        options: { responsive: true }
+    });
+}
+
+const sizeEl = document.getElementById('sizeChart');
+if (sizeEl) {
+    new Chart(sizeEl.getContext('2d'), {
+        type: 'bar',
+        data: {
+            labels: salesBySize.labels || [],
+            datasets: [{
+                label: 'Số lượng bán',
+                data: salesBySize.quantities || [],
+                backgroundColor: 'rgba(25, 135, 84, 0.7)'
+            }]
+        },
+        options: { responsive: true }
+    });
+}
+</script>
+{% endblock %}

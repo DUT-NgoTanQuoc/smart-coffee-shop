@@ -11,23 +11,21 @@ os.environ['USE_SQLITE'] = 'True'
 django.setup()
 
 import hashlib
-from django.db import connection
 from apps.core.models import Account
 
 # Hash of "123456" with MD5 format
 new_password_hash = f"$md5${hashlib.md5('123456'.encode()).hexdigest()}"
 
-print(f"Updating all account passwords...")
+print("Updating all account passwords...")
 print(f"New hash: {new_password_hash}")
 
-# Update all accounts
-with connection.cursor() as cursor:
-    cursor.execute("UPDATE accounts SET password_hash = ?", [new_password_hash])
-    connection.commit()
+# Update all accounts using Django ORM (works for SQLite/PostgreSQL)
+updated = Account.objects.update(password_hash=new_password_hash)
 
 # Verify
 count = Account.objects.count()
 print(f"\nTotal accounts in DB: {count}")
+print(f"Updated rows: {updated}")
 print("\nSample accounts:")
 for acc in Account.objects.all()[:10]:
     print(f"  ✓ {acc.username}: hash updated")

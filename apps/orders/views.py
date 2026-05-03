@@ -1,297 +1,384 @@
-from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib.auth.decorators import login_required
-from django.contrib import messages
-from django.http import JsonResponse
-from django.db import transaction
-from django.utils import timezone
-from decimal import Decimal
 import json
+import logging
+from decimal import Decimal, InvalidOperation
 
-from .models import Order, OrderItem, Payment
-from apps.products.models import Product, Customization
-from apps.customers.models import Customer
-from apps.staff.models import Staff
+from django.contrib.auth.decorators import login_required
+from django.db import transaction
+from django.http import JsonResponse
+from django.shortcuts import get_object_or_404, render
+
 from apps.core.utils import get_current_staff
+from apps.customers.models import Customer
+from apps.products.models import Customization, Product
+
+from .models import DiscountCode, Order, OrderItem, Payment
+
+logger = logging.getLogger(__name__)
+
+
+def _parse_decimal(value, default='0'):
+    """Parse Decimal safely from request payload."""
+    try:
+        return Decimal(str(value))
+    except (TypeError, InvalidOperation):
+        return Decimal(default)
+
+
+def _resolve_discount(code_raw, total_amount):
+    code_value = (code_raw or '').strip()
+    if not code_value:
+        return None, Decimal('0')
+
+    discount_code = DiscountCode.objects.filter(code__iexact=code_value).first()
+    if not discount_code:
+        raise ValueError('Mã giảm giá không tồn tại')
+
+    if not discount_code.is_currently_valid():
+        raise ValueError('Mã giảm giá đã hết hạn hoặc đang tạm khóa')
+
+    total = Decimal(str(total_amount or 0))
+    if total < discount_code.min_order_amount:
+        raise ValueError(
+            f'Đơn hàng tối thiểu {discount_code.min_order_amount:,.0f}đ để dùng mã này'
+        )
+
+    discount_amount = discount_code.calculate_discount(total)
+    if discount_amount <= 0:
+        raise ValueError('Mã giảm giá không áp dụng cho đơn hàng hiện tại')
+
+    return discount_code, discount_amount
 
 
 @login_required
 def create_order(request):
     """
-    POS Interface - Tạo đơn hàng
-    POS Interface - Create order
+    POS interface:
+    - GET: render page
+    - POST: create pending order
     """
     if request.method == 'POST':
         try:
+            data = json.loads(request.body or '{}')
+        except Exception as exc:
+            return JsonResponse(
+                {
+                    'success': False,
+                    'message': f'Dữ liệu đầu vào không hợp lệ: {exc}',
+                },
+                status=400,
+            )
+
+        try:
             with transaction.atomic():
-                # Lấy dữ liệu từ POST
-                data = json.loads(request.body)
-                print(f"[CREATE_ORDER] POST data: {data}")
-                
-                # Tạo đơn hàng
                 order = Order()
-                
-                # Gán khách hàng nếu có
+
                 customer_id = data.get('customer_id')
                 if customer_id:
-                    order.customer = Customer.objects.get(id=customer_id)
-                
-                # Gán nhân viên (dựa trên accounts table hoặc email/phone)
+                    order.customer = Customer.objects.filter(id=customer_id).first()
+                    if not order.customer:
+                        raise ValueError('Khách hàng không tồn tại')
+
                 try:
                     staff = get_current_staff(request.user)
                     if staff:
                         order.staff = staff
                 except Exception:
                     pass
-                
-                # Tính tổng tiền
-                items_data = data.get('items', [])
-                print(f"[CREATE_ORDER] items_data received: {items_data}, count: {len(items_data)}")
-                
-                # FAIL-FAST: Không cho phép tạo đơn không có sản phẩm
-                if not items_data or len(items_data) == 0:
+
+                items_data = data.get('items') or []
+                if not isinstance(items_data, list) or not items_data:
                     raise ValueError('Đơn hàng phải có ít nhất 1 sản phẩm')
-                
+
                 total = Decimal('0')
                 normalized_items = []
-                
+
                 for item_data in items_data:
+                    if not isinstance(item_data, dict):
+                        raise ValueError('Dữ liệu sản phẩm không hợp lệ')
+
                     product_id = item_data.get('product_id', item_data.get('productId'))
                     if not product_id:
                         raise ValueError('Thiếu product_id trong dữ liệu sản phẩm')
 
-                    product = Product.objects.get(id=product_id)
-                    size = item_data.get('size', 'N/A')
+                    product = Product.objects.filter(id=product_id, is_available=True).first()
+                    if not product:
+                        raise ValueError(f'Sản phẩm {product_id} không tồn tại hoặc đang tạm ngưng')
+
+                    size = item_data.get('size') or 'N/A'
                     quantity = int(item_data.get('quantity', item_data.get('qty', 1)))
                     if quantity <= 0:
                         raise ValueError('Số lượng sản phẩm phải lớn hơn 0')
-                    
-                    # Lấy giá theo size
-                    price = product.get_price(size)
-                    
-                    # Tính giá customizations
-                    customizations = item_data.get('customizations', [])
-                    custom_price = Decimal('0')
-                    for custom_id in customizations:
-                        custom = Customization.objects.get(id=custom_id)
-                        custom_price += custom.price
-                    
-                    # Tổng giá item
-                    item_total = (price + custom_price) * quantity
-                    total += item_total
 
-                    normalized_items.append({
-                        'product': product,
-                        'size': size,
-                        'quantity': quantity,
-                        'customizations': customizations,
-                    })
-                
-                # Áp dụng giảm giá
-                discount = Decimal(data.get('discount', 0))
+                    price = product.get_price(size)
+                    if price is None:
+                        raise ValueError(f'Sản phẩm "{product.name}" chưa có giá cho size {size}')
+
+                    customization_ids = item_data.get('customizations') or []
+                    if not isinstance(customization_ids, list):
+                        raise ValueError('Danh sách tùy chỉnh không hợp lệ')
+
+                    custom_objs = list(Customization.objects.filter(id__in=customization_ids))
+                    found_custom_ids = {c.id for c in custom_objs}
+                    missing_custom_ids = sorted(set(customization_ids) - found_custom_ids)
+                    if missing_custom_ids:
+                        raise ValueError(
+                            f'Tùy chỉnh không tồn tại: {", ".join(str(cid) for cid in missing_custom_ids)}'
+                        )
+
+                    custom_price = sum((c.price for c in custom_objs), Decimal('0'))
+                    item_subtotal = (price + custom_price) * quantity
+                    total += item_subtotal
+
+                    custom_json = [
+                        {'id': c.id, 'name': c.name, 'price': float(c.price)}
+                        for c in custom_objs
+                    ]
+
+                    normalized_items.append(
+                        {
+                            'product': product,
+                            'size': size,
+                            'quantity': quantity,
+                            'price': price,
+                            'customizations': custom_json,
+                            'subtotal': item_subtotal,
+                        }
+                    )
+
+                discount_code_input = data.get('discount_code')
+                discount_code, discount = _resolve_discount(discount_code_input, total)
+                if discount > total:
+                    raise ValueError('Giảm giá không được lớn hơn tổng tiền')
+
                 final_amount = total - discount
-                
-                # Lưu đơn hàng
+
+                payment_method = data.get('payment_method', 'cash')
+                valid_payment_methods = {code for code, _ in Payment.PAYMENT_METHOD_CHOICES}
+                if payment_method not in valid_payment_methods:
+                    raise ValueError('Phương thức thanh toán không hợp lệ')
+
                 order.total_amount = total
                 order.discount = discount
                 order.final_amount = final_amount
                 order.status = 'pending'
                 order.save()
-                print(f"[CREATE_ORDER] Order created: {order.id}, items: {len(items_data)}")
-                
-                # Tạo order items
-                for item_data in normalized_items:
-                    product = item_data['product']
-                    size = item_data['size']
-                    quantity = item_data['quantity']
-                    print(f"[CREATE_ORDER] Processing item: product={product.id}, size={size}, qty={quantity}")
-                    price = product.get_price(size)
-                    
-                    # Lấy customizations
-                    customizations = item_data.get('customizations', [])
-                    custom_objs = Customization.objects.filter(id__in=customizations)
-                    custom_price = sum(c.price for c in custom_objs)
-                    
-                    # Lưu customizations dưới dạng JSON
-                    custom_json = [{'id': c.id, 'name': c.name, 'price': float(c.price)} 
-                                   for c in custom_objs]
-                    
-                    # Tạo order item
+
+                for item in normalized_items:
                     OrderItem.objects.create(
                         order=order,
-                        product=product,
-                        size=size,
-                        quantity=quantity,
-                        price=price,
-                        customizations=custom_json,
-                        subtotal=(price + custom_price) * quantity
+                        product=item['product'],
+                        size=item['size'],
+                        quantity=item['quantity'],
+                        price=item['price'],
+                        customizations=item['customizations'],
+                        subtotal=item['subtotal'],
                     )
-                    print(f"[CREATE_ORDER] OrderItem created: {product.name} x{quantity}")
-                
-                # Tạo payment
-                payment_method = data.get('payment_method', 'cash')
+
                 Payment.objects.create(
                     order=order,
                     payment_method=payment_method,
-                    amount=final_amount
+                    amount=final_amount,
                 )
-                
-                # Status vẫn là 'pending' để barista xử lý (KHÔNG set thành 'completed')
-                # order.status = 'completed'
-                # order.save()
-                
-                return JsonResponse({
-                    'success': True,
-                    'order_number': order.order_number,
-                    'message': 'Đơn hàng đã được tạo thành công'
-                })
-                
-        except Exception as e:
-            import traceback
-            print(f"[CREATE_ORDER] ERROR: {str(e)}")
-            print(traceback.format_exc())
-            return JsonResponse({
-                'success': False,
-                'message': str(e)
-            }, status=400)
-    
-    # GET request - Hiển thị POS interface
+
+                return JsonResponse(
+                    {
+                        'success': True,
+                        'order_number': order.order_number,
+                        'message': 'Đơn hàng đã được tạo thành công',
+                        'discount_amount': float(discount),
+                        'discount_code': discount_code.code if discount_code else None,
+                        'discount_percent': float(discount_code.discount_percent) if discount_code else 0,
+                    }
+                )
+
+        except ValueError as exc:
+            return JsonResponse({'success': False, 'message': str(exc)}, status=400)
+        except Exception:
+            logger.exception('Unexpected error while creating order')
+            return JsonResponse(
+                {
+                    'success': False,
+                    'message': 'Không thể tạo đơn hàng. Vui lòng thử lại.',
+                },
+                status=500,
+            )
+
     products = Product.objects.filter(is_available=True).select_related('category')
     customizations = Customization.objects.all()
-    
-    context = {
-        'products': products,
-        'customizations': customizations,
-    }
-    
-    return render(request, 'orders/create_order.html', context)
+
+    return render(
+        request,
+        'orders/create_order.html',
+        {
+            'products': products,
+            'customizations': customizations,
+        },
+    )
+
+
+@login_required
+def validate_discount_code(request):
+    """Validate discount code and return discount amount for current cart total."""
+    code_value = (request.GET.get('code', '') or '').strip()
+    total_amount = _parse_decimal(request.GET.get('total', 0))
+
+    if not code_value:
+        return JsonResponse({'valid': False, 'message': 'Vui lòng nhập mã giảm giá'})
+    if total_amount <= 0:
+        return JsonResponse({'valid': False, 'message': 'Đơn hàng phải có giá trị lớn hơn 0'})
+
+    try:
+        discount_code, discount_amount = _resolve_discount(code_value, total_amount)
+    except ValueError as exc:
+        return JsonResponse({'valid': False, 'message': str(exc)}, status=400)
+
+    return JsonResponse(
+        {
+            'valid': True,
+            'code': discount_code.code,
+            'name': discount_code.name or '',
+            'discount_percent': float(discount_code.discount_percent),
+            'discount_amount': float(discount_amount),
+            'min_order_amount': float(discount_code.min_order_amount),
+            'max_discount_amount': float(discount_code.max_discount_amount or 0),
+            'message': 'Áp dụng mã giảm giá thành công',
+        }
+    )
 
 
 @login_required
 def order_list(request):
-    """Danh sách đơn hàng"""
-    # Mặc định sắp xếp từ mới đến cũ (newest first)
+    """Danh sach don hang."""
     orders = Order.objects.all().select_related('customer', 'staff').order_by('-order_date')
-    
-    # Lọc theo status nếu có
+
     status = request.GET.get('status')
     if status:
         orders = orders.filter(status=status)
-    
-    # Đảm bảo sắp xếp sau khi filter
-    orders = orders.order_by('-order_date')
-    
-    context = {
-        'orders': orders,
-    }
-    
-    return render(request, 'orders/order_list.html', context)
+
+    return render(request, 'orders/order_list.html', {'orders': orders})
 
 
 @login_required
 def order_detail(request, order_id):
-    """Chi tiết đơn hàng"""
+    """Chi tiet don hang."""
     order = get_object_or_404(
         Order.objects.select_related('customer', 'staff').prefetch_related('items__product', 'payments'),
-        id=order_id
+        id=order_id,
     )
     order_items = OrderItem.objects.filter(order_id=order_id).select_related('product').order_by('id')
-    
-    context = {
-        'order': order,
-        'order_items': order_items,
-    }
-    
-    return render(request, 'orders/order_detail.html', context)
+
+    return render(
+        request,
+        'orders/order_detail.html',
+        {
+            'order': order,
+            'order_items': order_items,
+        },
+    )
 
 
 @login_required
 def search_customer(request):
-    """Tìm kiếm khách hàng (AJAX)"""
-    phone = request.GET.get('phone', '')
-    
+    """Tim kiem khach hang (AJAX)."""
+    phone = (request.GET.get('phone', '') or '').strip()
+    if not phone:
+        return JsonResponse({'found': False, 'message': 'Vui long nhap so dien thoai'})
+
     try:
         customer = Customer.objects.get(phone=phone)
-        return JsonResponse({
-            'found': True,
-            'customer': {
-                'id': customer.id,
-                'name': customer.name,
-                'phone': customer.phone,
-                'tier': customer.tier,
-                'points': customer.points,
-                'discount': customer.get_discount_percentage()
+        return JsonResponse(
+            {
+                'found': True,
+                'customer': {
+                    'id': customer.id,
+                    'name': customer.name,
+                    'phone': customer.phone,
+                    'tier': customer.tier,
+                    'points': customer.points,
+                    'discount': customer.get_discount_percentage(),
+                },
             }
-        })
+        )
     except Customer.DoesNotExist:
-        return JsonResponse({
-            'found': False,
-            'message': 'Không tìm thấy khách hàng'
-        })
+        return JsonResponse({'found': False, 'message': 'Khong tim thay khach hang'})
 
 
 @login_required
 def update_order_status(request, order_id):
     """
-    API endpoint - Update order status
-    POST: {status: 'pending' | 'preparing' | 'completed'}
+    API endpoint - Update order status.
+    POST payload: {"status": "pending"|"preparing"|"completed"}
     """
     if request.method != 'POST':
         return JsonResponse({'success': False, 'message': 'Method not allowed'}, status=405)
-    
+
     try:
         order = Order.objects.get(id=order_id)
-        
-        # Check permission - only barista/admin can update
-        is_authorized = False
-        
-        if request.user.is_superuser:
+    except Order.DoesNotExist:
+        return JsonResponse({'success': False, 'message': 'Don hang khong ton tai'}, status=404)
+
+    is_authorized = False
+    if request.user.is_superuser:
+        is_authorized = True
+    else:
+        user_role = getattr(request.user, 'role', None)
+        if user_role in {'admin', 'manager', 'barista'}:
             is_authorized = True
-        else:
-            # Try multiple ways to check if user is barista
-            try:
-                # Method 1: Check Account model
-                from apps.core.models import Account
-                account = Account.objects.get(username=request.user.username)
-                if account.role_id in [3, 1]:  # 3=barista, 1=admin
-                    is_authorized = True
-            except:
-                pass
-            
-            # Method 2: Check Staff model
-            if not is_authorized:
-                try:
-                    staff = get_current_staff(request.user)
-                    if staff and staff.role in ['barista', 'admin']:
-                        is_authorized = True
-                except:
-                    pass
-        
         if not is_authorized:
-            print(f"[UPDATE_ORDER_STATUS] Unauthorized access attempt by {request.user.username}")
-            return JsonResponse({'success': False, 'message': 'Unauthorized'}, status=403)
-        
-        data = json.loads(request.body)
-        new_status = data.get('status')
-        
-        if new_status not in dict(Order.STATUS_CHOICES):
-            return JsonResponse({'success': False, 'message': 'Invalid status'})
-        
-        order.status = new_status
-        if new_status == 'completed':
-            order.completed_at = timezone.now()
-        order.save()
-        
-        print(f"[UPDATE_ORDER_STATUS] Order {order.id} updated to {new_status} by {request.user.username}")
-        
-        return JsonResponse({
+            try:
+                staff = get_current_staff(request.user)
+                if staff and staff.role in {'manager', 'barista'}:
+                    is_authorized = True
+            except Exception:
+                is_authorized = False
+
+    if not is_authorized:
+        return JsonResponse({'success': False, 'message': 'Unauthorized'}, status=403)
+
+    try:
+        data = json.loads(request.body or '{}')
+    except Exception:
+        return JsonResponse({'success': False, 'message': 'Du lieu khong hop le'}, status=400)
+
+    new_status = data.get('status')
+    valid_statuses = {code for code, _ in Order.STATUS_CHOICES}
+    if new_status not in valid_statuses:
+        return JsonResponse({'success': False, 'message': 'Invalid status'}, status=400)
+
+    if new_status == order.status:
+        return JsonResponse(
+            {
+                'success': True,
+                'message': 'Trang thai khong thay doi',
+                'order_id': order.id,
+                'status': order.status,
+                'status_display': order.get_status_display(),
+            }
+        )
+
+    allowed_transitions = {
+        'pending': {'preparing', 'completed'},
+        'preparing': {'completed'},
+        'completed': set(),
+    }
+    if new_status not in allowed_transitions.get(order.status, set()):
+        return JsonResponse(
+            {
+                'success': False,
+                'message': f'Khong the chuyen tu "{order.get_status_display()}" sang trang thai nay',
+            },
+            status=400,
+        )
+
+    order.status = new_status
+    order.save(update_fields=['status'])
+
+    return JsonResponse(
+        {
             'success': True,
-            'message': f'Đơn hàng cập nhật thành: {order.get_status_display()}',
+            'message': f'Don hang cap nhat thanh: {order.get_status_display()}',
             'order_id': order.id,
             'status': order.status,
             'status_display': order.get_status_display(),
-        })
-    
-    except Order.DoesNotExist:
-        return JsonResponse({'success': False, 'message': 'Đơn hàng không tồn tại'}, status=404)
-    except Exception as e:
-        return JsonResponse({'success': False, 'message': str(e)}, status=500)
+        }
+    )
