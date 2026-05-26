@@ -227,6 +227,8 @@ class ShiftAssignment(models.Model):
 
     @property
     def effective_hourly_rate(self):
+        if self.staff and self.staff.role == 'manager':
+            return Decimal('0')
         if self.hourly_rate is not None and self.hourly_rate > 0:
             return self.hourly_rate
         if self.staff.salary:

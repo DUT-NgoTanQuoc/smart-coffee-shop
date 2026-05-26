@@ -321,16 +321,36 @@ def schedule_calendar(request):
     """Render scheduling page (calendar + side panel)."""
     rules, _ = _get_shift_rules_map()
 
+    staff_qs = Staff.objects.filter(is_active=True).order_by('role', 'name')
+    staff_by_role = []
+    for role_value, role_label in Staff.ROLE_CHOICES:
+        grouped = [staff for staff in staff_qs if staff.role == role_value]
+        if grouped:
+            staff_by_role.append({'role': role_value, 'label': role_label, 'items': grouped})
+
+    shift_rules_payload = {
+        rule.shift: {
+            'start_time': rule.start_time.strftime('%H:%M'),
+            'end_time': rule.end_time.strftime('%H:%M'),
+            'min_staff': rule.min_staff,
+            'max_staff': rule.max_staff,
+            'shift_display': rule.get_shift_display(),
+        }
+        for rule in rules
+    }
+
     assignment_form = ShiftAssignmentForm(initial={'work_date': timezone.localdate()})
-    assignment_form.fields['staff'].queryset = Staff.objects.filter(is_active=True).order_by('name')
+    assignment_form.fields['staff'].queryset = staff_qs
 
     return render(
         request,
         'staff/schedule_calendar.html',
         {
             'assignment_form': assignment_form,
-            'staff_choices': Staff.objects.filter(is_active=True).order_by('name'),
+            'staff_choices': staff_qs,
+            'staff_by_role': staff_by_role,
             'shift_rules': rules,
+            'shift_rules_json': json.dumps(shift_rules_payload, ensure_ascii=False),
         },
     )
 
@@ -375,8 +395,12 @@ def schedule_api_events(request):
         visible_assignments = visible_assignments.filter(staff_id=staff_filter_id)
 
     all_count_map = defaultdict(int)
+    role_count_map = defaultdict(lambda: {'cashier': 0, 'barista': 0})
     for assignment in all_assignments:
         all_count_map[(assignment.work_date, assignment.shift)] += 1
+        role = assignment.staff.role
+        if role in role_count_map[(assignment.work_date, assignment.shift)]:
+            role_count_map[(assignment.work_date, assignment.shift)][role] += 1
 
     visible_group = defaultdict(list)
     for assignment in visible_assignments:
@@ -396,6 +420,16 @@ def schedule_api_events(request):
             shown_names = [item.staff.name for item in shown_items]
 
             status, warning = _staffing_warning(total_count, rule.min_staff, rule.max_staff)
+
+            role_counts = role_count_map.get(key, {'cashier': 0, 'barista': 0})
+            missing_roles = []
+            if role_counts.get('cashier', 0) < 1:
+                missing_roles.append('thiếu thu ngân')
+            if role_counts.get('barista', 0) < 1:
+                missing_roles.append('thiếu barista')
+            if missing_roles:
+                status = 'short'
+                warning = ' / '.join(missing_roles)
 
             if shown_names:
                 title_names = ', '.join(shown_names)
@@ -423,6 +457,7 @@ def schedule_api_events(request):
                         'warning': warning,
                         'staff_names': shown_names,
                         'assignments': [_serialize_assignment(item) for item in shown_items],
+                        'role_counts': role_counts,
                     },
                 }
             )

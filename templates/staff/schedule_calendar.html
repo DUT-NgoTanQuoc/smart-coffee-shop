@@ -73,7 +73,18 @@
 
                     <div class="mb-3">
                         <label class="form-label">Nhân viên</label>
-                        {{ assignment_form.staff }}
+                        <select name="staff" class="form-select" id="staffSelect">
+                            <option value="">-- Chọn nhân viên --</option>
+                            {% for group in staff_by_role %}
+                            <optgroup label="{{ group.label }}">
+                                {% for staff in group.items %}
+                                <option value="{{ staff.id }}" data-role="{{ staff.role }}" data-salary="{{ staff.salary|default_if_none:''|floatformat:0 }}">
+                                    {{ staff.name }}
+                                </option>
+                                {% endfor %}
+                            </optgroup>
+                            {% endfor %}
+                        </select>
                     </div>
 
                     <div class="row g-2">
@@ -87,7 +98,7 @@
                         </div>
                     </div>
 
-                    <div class="row g-2 mt-1">
+                    <div class="row g-2 mt-1 d-none" id="timeRow">
                         <div class="col-6">
                             <label class="form-label">Bắt đầu</label>
                             {{ assignment_form.start_time }}
@@ -99,8 +110,9 @@
                     </div>
 
                     <div class="mb-3 mt-2">
-                        <label class="form-label">Lương theo giờ</label>
+                        <label class="form-label">Lương</label>
                         {{ assignment_form.hourly_rate }}
+                        <small id="salaryHint" class="text-muted d-block mt-1"></small>
                     </div>
 
                     <div class="mb-3">
@@ -209,6 +221,10 @@
     const endInput = formEl.querySelector('[name="end_time"]');
     const hourlyRateInput = formEl.querySelector('[name="hourly_rate"]');
     const noteInput = formEl.querySelector('[name="note"]');
+    const timeRow = document.getElementById('timeRow');
+    const salaryHintEl = document.getElementById('salaryHint');
+
+    const shiftRules = {{ shift_rules_json|safe }};
 
     const csrfToken = formEl.querySelector('[name="csrfmiddlewaretoken"]').value;
 
@@ -246,11 +262,69 @@
         return lines.join(' ');
     }
 
+    function formatCurrency(value) {
+        const numberValue = Number(value);
+        if (!Number.isFinite(numberValue)) return '';
+        return `${numberValue.toLocaleString('vi-VN')}đ`;
+    }
+
+    function calcHourlyRate(salary, role) {
+        const monthly = Number(salary);
+        if (!Number.isFinite(monthly) || monthly <= 0) return '';
+        if (role === 'manager') return '';
+        return Math.round(monthly / 208); // 26 days * 8 hours
+    }
+
+    function updateSalaryDisplay() {
+        const selected = staffInput.options[staffInput.selectedIndex];
+        if (!selected) {
+            hourlyRateInput.value = '';
+            hourlyRateInput.readOnly = false;
+            salaryHintEl.textContent = '';
+            return;
+        }
+
+        const role = selected.dataset.role || '';
+        const salary = selected.dataset.salary || '';
+
+        if (role === 'manager') {
+            hourlyRateInput.value = '';
+            hourlyRateInput.readOnly = true;
+            salaryHintEl.textContent = salary
+                ? `Lương cố định theo tháng: ${formatCurrency(salary)}`
+                : 'Lương cố định theo tháng';
+            return;
+        }
+
+        hourlyRateInput.readOnly = false;
+        if (!assignmentIdInput.value || !hourlyRateInput.value) {
+            const hourly = calcHourlyRate(salary, role);
+            hourlyRateInput.value = hourly;
+            salaryHintEl.textContent = hourly
+                ? `Lương theo giờ: ${formatCurrency(hourly)}`
+                : 'Lương theo giờ';
+        } else {
+            salaryHintEl.textContent = hourlyRateInput.value
+                ? `Lương theo giờ: ${formatCurrency(hourlyRateInput.value)}`
+                : 'Lương theo giờ';
+        }
+    }
+
+    function updateShiftTimeFields() {
+        const rule = shiftRules[shiftInput.value];
+        if (rule) {
+            startInput.value = rule.start_time || '';
+            endInput.value = rule.end_time || '';
+        }
+    }
+
     function resetForm() {
         assignmentIdInput.value = '';
         formEl.reset();
         formModeBadge.textContent = 'Thêm mới';
         submitBtn.innerHTML = '<i class="bi bi-save"></i> Lưu phân ca';
+        updateSalaryDisplay();
+        updateShiftTimeFields();
     }
 
     function fillFormFromAssignment(assignment) {
@@ -260,11 +334,13 @@
         shiftInput.value = assignment.shift;
         startInput.value = assignment.start_time || '';
         endInput.value = assignment.end_time || '';
-        hourlyRateInput.value = assignment.hourly_rate || '';
+    hourlyRateInput.value = assignment.hourly_rate || '';
         noteInput.value = assignment.note || '';
 
         formModeBadge.textContent = 'Đang sửa';
         submitBtn.innerHTML = '<i class="bi bi-pencil-square"></i> Cập nhật phân ca';
+        updateSalaryDisplay();
+        updateShiftTimeFields();
     }
 
     function renderSelectedShift(eventObj) {
@@ -388,6 +464,7 @@
             assignmentIdInput.value = '';
             formModeBadge.textContent = 'Thêm mới';
             submitBtn.innerHTML = '<i class="bi bi-save"></i> Lưu phân ca';
+            updateShiftTimeFields();
         },
         eventDidMount: function(info) {
             const status = info.event.extendedProps.status;
@@ -407,6 +484,7 @@
             workDateInput.value = ext.work_date;
             shiftInput.value = ext.shift;
             renderSelectedShift(info.event);
+            updateShiftTimeFields();
         },
     });
 
@@ -419,6 +497,14 @@
     clearFilterBtn.addEventListener('click', () => {
         filterSelect.value = '';
         calendar.refetchEvents();
+    });
+
+    staffInput.addEventListener('change', () => {
+        updateSalaryDisplay();
+    });
+
+    shiftInput.addEventListener('change', () => {
+        updateShiftTimeFields();
     });
 
     resetFormBtn.addEventListener('click', () => {
@@ -476,6 +562,9 @@
             submitBtn.disabled = false;
         }
     });
+
+    updateSalaryDisplay();
+    updateShiftTimeFields();
 })();
 </script>
 {% endblock %}
