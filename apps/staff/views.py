@@ -241,6 +241,7 @@ def staff_create(request):
 def staff_update(request, staff_id):
     """Cập nhật nhân viên và tài khoản đăng nhập."""
     staff = get_object_or_404(Staff, id=staff_id)
+    previous_is_active = staff.is_active
 
     initial_username = ''
     from django.db import connection
@@ -264,6 +265,16 @@ def staff_update(request, staff_id):
     if request.method == 'POST':
         if form.is_valid():
             staff = form.save()
+            if previous_is_active and not staff.is_active:
+                today = timezone.localdate()
+                future_assignments = ShiftAssignment.objects.filter(staff=staff, work_date__gt=today)
+                deleted_count = future_assignments.count()
+                if deleted_count:
+                    future_assignments.delete()
+                    messages.info(
+                        request,
+                        f'Đã ngưng làm và xóa {deleted_count} ca phân công trong tương lai.',
+                    )
             form.sync_user(staff)
             messages.success(request, 'Đã cập nhật nhân viên và tài khoản đăng nhập.')
             return redirect('staff_list')

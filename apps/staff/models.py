@@ -28,7 +28,7 @@ class Staff(models.Model):
         decimal_places=2,
         blank=True,
         null=True,
-        verbose_name='Lương',
+        verbose_name='Lương/giờ',
     )
     hire_date = models.DateField(verbose_name='Ngày vào làm')
     is_active = models.BooleanField(default=True, verbose_name='Đang làm việc')
@@ -227,12 +227,10 @@ class ShiftAssignment(models.Model):
 
     @property
     def effective_hourly_rate(self):
-        if self.staff and self.staff.role == 'manager':
-            return Decimal('0')
         if self.hourly_rate is not None and self.hourly_rate > 0:
             return self.hourly_rate
         if self.staff.salary:
-            return Decimal(self.staff.salary) / Decimal('208')
+            return Decimal(self.staff.salary)
         return Decimal('0')
 
     @property

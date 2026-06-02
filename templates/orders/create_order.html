@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% load static %}
+{% load static l10n %}
 
 {% block title %}POS - Tạo đơn hàng{% endblock %}
 
@@ -15,7 +15,13 @@
             <div class="card-body p-0" style="max-height: 70vh; overflow-y: auto;">
                 <div class="product-grid p-3">
                     {% for product in products %}
-                    <div class="product-card" onclick="selectProduct({{ product.id }})">
+                    <div class="product-card"
+                         data-product-id="{{ product.id }}"
+                         data-product-name="{{ product.name }}"
+                         data-price-small="{{ product.price_small|default_if_none:''|unlocalize }}"
+                         data-price-medium="{{ product.price_medium|default_if_none:''|unlocalize }}"
+                         data-price-large="{{ product.price_large|default_if_none:''|unlocalize }}"
+                         onclick="selectProduct(this)">
                         {% if product.image %}
                         <img src="{% if product.image.url %}{{ product.image.url }}{% else %}/media/{{ product.image }}{% endif %}"
                              alt="{{ product.name }}"
@@ -170,6 +176,7 @@
 <script>
 var cart = [];
 var customer = null;
+var currentProduct = null;
 var currentProductId = null;
 var appliedDiscount = null;
 
@@ -185,21 +192,23 @@ function getCartTotal() {
     return total;
 }
 
-function selectProduct(productId) {
-    currentProductId = productId;
+function parsePrice(value) {
+    var parsed = parseFloat(value || '0');
+    return Number.isFinite(parsed) ? parsed : 0;
+}
 
-    var productCard = document.querySelector('[onclick="selectProduct(' + productId + ')"]');
-    var productName = productCard.querySelector('.product-name').textContent;
-    var priceText = productCard.querySelector('.product-price').textContent;
-
-    var prices = { small: 0, medium: 0, large: 0, name: productName };
-    var smallMatch = priceText.match(/S:\s*([\d,]+)/);
-    var mediumMatch = priceText.match(/M:\s*([\d,]+)/);
-    var largeMatch = priceText.match(/L:\s*([\d,]+)/);
-
-    if (smallMatch) prices.small = parseInt(smallMatch[1].replace(/,/g, ''), 10);
-    if (mediumMatch) prices.medium = parseInt(mediumMatch[1].replace(/,/g, ''), 10);
-    if (largeMatch) prices.large = parseInt(largeMatch[1].replace(/,/g, ''), 10);
+function selectProduct(productCard) {
+    currentProduct = {
+        id: parseInt(productCard.dataset.productId, 10),
+        name: productCard.dataset.productName || productCard.querySelector('.product-name').textContent,
+        prices: {
+            small: parsePrice(productCard.dataset.priceSmall),
+            medium: parsePrice(productCard.dataset.priceMedium),
+            large: parsePrice(productCard.dataset.priceLarge)
+        }
+    };
+    currentProductId = currentProduct.id;
+    var productName = currentProduct.name;
 
     var modalTitle = document.getElementById('sizeModalTitle');
     var modalBody = document.getElementById('sizeModalBody');
@@ -208,21 +217,21 @@ function selectProduct(productId) {
     var sizeButtons = '';
     var hasAnySize = false;
 
-    if (prices.small > 0) {
-        sizeButtons += '<button class="btn btn-primary btn-lg m-2" onclick="addItem(\\'S\\', ' + prices.small + ')">Size S - ' + formatMoney(prices.small) + '</button>';
+    if (currentProduct.prices.small > 0) {
+        sizeButtons += '<button class="btn btn-primary btn-lg m-2" onclick="addItem(\'S\', ' + currentProduct.prices.small + ')">Size S - ' + formatMoney(currentProduct.prices.small) + '</button>';
         hasAnySize = true;
     }
-    if (prices.medium > 0) {
-        sizeButtons += '<button class="btn btn-primary btn-lg m-2" onclick="addItem(\\'M\\', ' + prices.medium + ')">Size M - ' + formatMoney(prices.medium) + '</button>';
+    if (currentProduct.prices.medium > 0) {
+        sizeButtons += '<button class="btn btn-primary btn-lg m-2" onclick="addItem(\'M\', ' + currentProduct.prices.medium + ')">Size M - ' + formatMoney(currentProduct.prices.medium) + '</button>';
         hasAnySize = true;
     }
-    if (prices.large > 0) {
-        sizeButtons += '<button class="btn btn-primary btn-lg m-2" onclick="addItem(\\'L\\', ' + prices.large + ')">Size L - ' + formatMoney(prices.large) + '</button>';
+    if (currentProduct.prices.large > 0) {
+        sizeButtons += '<button class="btn btn-primary btn-lg m-2" onclick="addItem(\'L\', ' + currentProduct.prices.large + ')">Size L - ' + formatMoney(currentProduct.prices.large) + '</button>';
         hasAnySize = true;
     }
 
     if (!hasAnySize) {
-        var directPrice = prices.medium || prices.small || prices.large || 0;
+        var directPrice = currentProduct.prices.medium || currentProduct.prices.small || currentProduct.prices.large || 0;
         if (directPrice > 0) {
             addItem('N/A', directPrice);
         } else {
@@ -237,8 +246,8 @@ function selectProduct(productId) {
 }
 
 function addItem(size, price) {
-    var productCard = document.querySelector('[onclick="selectProduct(' + currentProductId + ')"]');
-    var productName = productCard.querySelector('.product-name').textContent;
+    if (!currentProduct) return;
+    var productName = currentProduct.name;
 
     var existingItem = null;
     for (var i = 0; i < cart.length; i++) {

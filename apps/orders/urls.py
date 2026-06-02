@@ -2,7 +2,7 @@ from django.urls import path
 from . import views
 from .views_dashboard import (
     admin_dashboard, cashier_dashboard, barista_dashboard,
-    order_detail_barista, recipe_view, ingredient_tracking, order_queue
+    order_detail_barista, recipe_view, ingredient_tracking, order_queue, barista_dashboard_data
 )
 
 urlpatterns = [
@@ -20,6 +20,7 @@ urlpatterns = [
     path('dashboard/admin/', admin_dashboard, name='admin-dashboard'),
     path('dashboard/cashier/', cashier_dashboard, name='cashier-dashboard'),
     path('dashboard/barista/', barista_dashboard, name='barista-dashboard'),
+    path('dashboard/barista/data/', barista_dashboard_data, name='barista-dashboard-data'),
     path('dashboard/barista/queue/', order_queue, name='barista-queue'),
     path('dashboard/barista/order/<int:order_id>/', order_detail_barista, name='barista-order-detail'),
     path('dashboard/recipe/<int:product_id>/', recipe_view, name='recipe-view'),

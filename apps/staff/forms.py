@@ -19,14 +19,20 @@ class StaffForm(forms.ModelForm):
         max_length=128,
         required=False,
         label='Mật khẩu',
-        widget=forms.PasswordInput(render_value=False, attrs={'class': 'form-control'}),
+        widget=forms.PasswordInput(
+            render_value=False,
+            attrs={'class': 'form-control', 'autocomplete': 'new-password'},
+        ),
         help_text='Để trống nếu không đổi mật khẩu',
     )
     password_confirm = forms.CharField(
         max_length=128,
         required=False,
         label='Xác nhận mật khẩu',
-        widget=forms.PasswordInput(render_value=False, attrs={'class': 'form-control'}),
+        widget=forms.PasswordInput(
+            render_value=False,
+            attrs={'class': 'form-control', 'autocomplete': 'new-password'},
+        ),
     )
 
     class Meta:
@@ -80,9 +86,16 @@ class StaffForm(forms.ModelForm):
 
     def clean(self):
         cleaned = super().clean()
-        pwd = cleaned.get('password')
-        pwd2 = cleaned.get('password_confirm')
-        if pwd or pwd2:
+        pwd = (cleaned.get('password') or '').strip()
+        pwd2 = (cleaned.get('password_confirm') or '').strip()
+
+        # Update profile data without touching password when password field is empty.
+        if not pwd:
+            cleaned['password'] = ''
+            cleaned['password_confirm'] = ''
+        else:
+            if not pwd2:
+                raise forms.ValidationError('Vui lòng nhập xác nhận mật khẩu.')
             if pwd != pwd2:
                 raise forms.ValidationError('Mật khẩu xác nhận không khớp')
             if len(pwd) < 4:

@@ -68,3 +68,16 @@ class ProductForm(forms.ModelForm):
         if description == '':
             return None
         return description
+
+    def clean(self):
+        cleaned_data = super().clean()
+        prices = [
+            cleaned_data.get('price_small'),
+            cleaned_data.get('price_medium'),
+            cleaned_data.get('price_large'),
+        ]
+
+        if not any(price is not None and price > 0 for price in prices):
+            raise forms.ValidationError('Vui lòng nhập ít nhất một giá lớn hơn 0.')
+
+        return cleaned_data

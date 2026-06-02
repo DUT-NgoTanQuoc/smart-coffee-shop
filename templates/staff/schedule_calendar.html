@@ -234,6 +234,8 @@
         updateTemplate: "{% url 'schedule_api_update' 0 %}",
         deleteTemplate: "{% url 'schedule_api_delete' 0 %}",
     };
+    let activeShiftKey = null;
+    let pendingPanelRefresh = false;
 
     function getUpdateUrl(id) {
         return API.updateTemplate.replace('/0/update/', `/${id}/update/`);
@@ -241,6 +243,11 @@
 
     function getDeleteUrl(id) {
         return API.deleteTemplate.replace('/0/delete/', `/${id}/delete/`);
+    }
+
+    function buildShiftKey(workDate, shift) {
+        if (!workDate || !shift) return null;
+        return `${workDate}-${shift}`;
     }
 
     function showAlert(message, type = 'success') {
@@ -268,11 +275,10 @@
         return `${numberValue.toLocaleString('vi-VN')}đ`;
     }
 
-    function calcHourlyRate(salary, role) {
-        const monthly = Number(salary);
-        if (!Number.isFinite(monthly) || monthly <= 0) return '';
-        if (role === 'manager') return '';
-        return Math.round(monthly / 208); // 26 days * 8 hours
+    function getStaffHourlyRate(salary) {
+        const hourly = Number(salary);
+        if (!Number.isFinite(hourly) || hourly <= 0) return '';
+        return Math.round(hourly);
     }
 
     function updateSalaryDisplay() {
@@ -284,21 +290,10 @@
             return;
         }
 
-        const role = selected.dataset.role || '';
         const salary = selected.dataset.salary || '';
-
-        if (role === 'manager') {
-            hourlyRateInput.value = '';
-            hourlyRateInput.readOnly = true;
-            salaryHintEl.textContent = salary
-                ? `Lương cố định theo tháng: ${formatCurrency(salary)}`
-                : 'Lương cố định theo tháng';
-            return;
-        }
-
         hourlyRateInput.readOnly = false;
         if (!assignmentIdInput.value || !hourlyRateInput.value) {
-            const hourly = calcHourlyRate(salary, role);
+            const hourly = getStaffHourlyRate(salary);
             hourlyRateInput.value = hourly;
             salaryHintEl.textContent = hourly
                 ? `Lương theo giờ: ${formatCurrency(hourly)}`
@@ -346,6 +341,7 @@
     function renderSelectedShift(eventObj) {
         const ext = eventObj.extendedProps || {};
         const assignments = ext.assignments || [];
+        activeShiftKey = buildShiftKey(ext.work_date, ext.shift);
 
         let html = `
             <div class="fw-semibold mb-1">${ext.shift_display} - ${ext.work_date}</div>
@@ -410,9 +406,21 @@
                 }
 
                 showAlert('Đã xóa phân ca.', 'success');
+                activeShiftKey = buildShiftKey(ext.work_date, ext.shift);
+                pendingPanelRefresh = true;
                 calendar.refetchEvents();
             });
         });
+    }
+
+    function refreshSelectedShiftPanel(events) {
+        if (!activeShiftKey) return;
+        const selectedEvent = (events || calendar.getEvents()).find((evt) => {
+            const ext = evt.extendedProps || {};
+            return buildShiftKey(ext.work_date, ext.shift) === activeShiftKey;
+        });
+        if (!selectedEvent) return;
+        renderSelectedShift(selectedEvent);
     }
 
     const calendarEl = document.getElementById('scheduleCalendar');
@@ -486,6 +494,11 @@
             renderSelectedShift(info.event);
             updateShiftTimeFields();
         },
+        eventsSet: function(events) {
+            if (!pendingPanelRefresh) return;
+            refreshSelectedShiftPanel(events);
+            pendingPanelRefresh = false;
+        },
     });
 
     calendar.render();
@@ -554,6 +567,8 @@
             }
 
             showAlert(data.message || 'Lưu thành công.', 'success');
+            activeShiftKey = buildShiftKey(payload.work_date, payload.shift);
+            pendingPanelRefresh = true;
             resetForm();
             calendar.refetchEvents();
         } catch (error) {

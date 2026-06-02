@@ -5,6 +5,13 @@
 
 {% block content %}
 <style>
+    :root {
+        --barista-accent: #0f766e;
+        --barista-accent-2: #14b8a6;
+        --barista-warm: #f59e0b;
+        --barista-bg: #f4f7fb;
+    }
+
     .barista-grid {
         display: grid;
         grid-template-columns: 1fr 1fr;
@@ -12,7 +19,10 @@
         gap: 15px;
         height: 90vh;
         padding: 15px;
-        background: #f5f5f5;
+        background:
+            radial-gradient(circle at top left, rgba(20, 184, 166, 0.12), transparent 30%),
+            radial-gradient(circle at top right, rgba(245, 158, 11, 0.12), transparent 24%),
+            var(--barista-bg);
     }
     
     .barista-panel {
@@ -25,11 +35,63 @@
     }
     
     .panel-header {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: linear-gradient(135deg, var(--barista-accent) 0%, #155e75 100%);
         color: white;
         padding: 15px;
         font-weight: bold;
         border-bottom: 2px solid #667eea;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+    }
+
+    .header-actions {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .bell-btn {
+        position: relative;
+        border: 1px solid rgba(255,255,255,0.35);
+        background: rgba(255,255,255,0.12);
+        color: white;
+        border-radius: 999px;
+        width: 40px;
+        height: 40px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: transform 0.2s ease, background 0.2s ease;
+    }
+
+    .bell-btn:hover {
+        transform: translateY(-1px);
+        background: rgba(255,255,255,0.2);
+    }
+
+    .bell-badge {
+        position: absolute;
+        top: -6px;
+        right: -6px;
+        min-width: 20px;
+        height: 20px;
+        padding: 0 6px;
+        border-radius: 999px;
+        background: #ef4444;
+        color: white;
+        font-size: 11px;
+        font-weight: 700;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 0 0 2px rgba(15, 118, 110, 1);
+    }
+
+    .bell-badge.hidden {
+        display: none;
     }
     
     .panel-body {
@@ -223,7 +285,13 @@
     <!-- Ô1: Đơn hàng chưa hoàn thành -->
     <div class="barista-panel">
         <div class="panel-header">
-            <i class="bi bi-hourglass-split"></i> Chưa hoàn thành ({{ pending_orders|length }})
+            <span><i class="bi bi-hourglass-split"></i> Chưa hoàn thành (<span id="pendingCount">{{ pending_orders|length }}</span>)</span>
+            <div class="header-actions">
+                <button type="button" class="bell-btn" id="notificationBell" title="Thong bao moi" onclick="markNotificationsRead()">
+                    <i class="bi bi-bell"></i>
+                    <span class="bell-badge {% if notification_count == 0 %}hidden{% endif %}" id="notificationBadge">{{ notification_count|default:0 }}</span>
+                </button>
+            </div>
         </div>
         <div class="panel-body">
             {% if pending_orders %}
@@ -294,13 +362,13 @@
     <!-- Ô4: Đơn đã hoàn thành -->
     <div class="barista-panel">
         <div class="panel-header">
-            <i class="bi bi-check-circle"></i> Đã hoàn thành ({{ completed_orders|length }})
+            <span><i class="bi bi-check-circle"></i> Đã hoàn thành (<span id="completedCount">{{ completed_orders|length }}</span>)</span>
         </div>
         <div class="panel-body">
             {% if completed_orders %}
-            <div class="completed-list">
+            <div class="completed-list" id="completedOrderList">
                 {% for order in completed_orders %}
-                <div class="completed-badge">
+                <div class="completed-badge" data-order-id="{{ order.id }}">
                     <div class="completed-code">
                         <a href="{% url 'order_detail' order.id %}" target="_blank" style="color: inherit; text-decoration: none;">
                             {{ order.order_number }} 🔗
@@ -326,15 +394,149 @@
 <script>
 let selectedOrderId = null;
 let selectedDishId = null;
+let notificationCount = Number('{{ notification_count|default:0 }}');
 
-// Dữ liệu tất cả đơn hàng + món + công thức từ server (JSON)
-const ordersData = JSON.parse('{{ orders_data_json|escapejs }}');
+// D? li?u t?t c? ??n h?ng + m?n + c?ng th?c t? server (JSON)
+let ordersData = JSON.parse('{{ orders_data_json|escapejs }}');
+let knownPendingIds = new Set(Object.keys(ordersData));
+let knownCompletedIds = new Set(Array.from(document.querySelectorAll('#completedOrderList .completed-badge')).map(el => String(el.dataset.orderId || '')));
 
 Object.keys(ordersData).forEach(orderId => {
     const order = ordersData[orderId];
     order.items.forEach(item => {
     });
 });
+
+function escapeHtml(text) {
+    return String(text || '').replace(/[&<>"']/g, function (ch) {
+        return ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[ch]);
+    });
+}
+
+function renderPendingOrders(pendingOrders) {
+    const listEl = document.querySelector('.barista-grid .barista-panel:nth-child(1) .order-list');
+    const emptyHtml = `
+        <div class="empty-state">
+            <div class="empty-icon">✅</div>
+            <p>Không có đơn chưa hoàn</p>
+        </div>
+    `;
+    if (!listEl) return;
+
+    if (!pendingOrders || Object.keys(pendingOrders).length === 0) {
+        listEl.innerHTML = emptyHtml;
+        setCount('pendingCount', 0);
+        return;
+    }
+
+    const items = Object.values(pendingOrders);
+    let html = '';
+    items.forEach(order => {
+        const customerHtml = order.customer_name ? `<span class="order-time-small">👤 ${escapeHtml(order.customer_name)}</span>` : '';
+        html += `
+            <div class="order-badge" style="display: flex; justify-content: space-between; align-items: center;">
+                <div style="flex: 1; cursor: pointer;" onclick="selectOrder(${order.id}, this.parentElement)">
+                    <div class="order-code">
+                        <a href="/orders/${order.id}/" target="_blank" style="color: inherit; text-decoration: none;">
+                            ${escapeHtml(order.number)} 🔗
+                        </a>
+                    </div>
+                    <span class="order-time-small">${escapeHtml(order.order_time)}</span>
+                    ${customerHtml}
+                </div>
+                <div style="display: flex; gap: 5px;">
+                    <button class="complete-btn" onclick="event.stopPropagation(); selectOrder(${order.id}, this.parentElement.parentElement); return false;" style="background: #17a2b8; padding: 6px 10px;">
+                        👀 Xem món
+                    </button>
+                    <button class="complete-btn" onclick="event.stopPropagation(); completeOrder(${order.id}); return false;">
+                        ✓ Hoàn thành
+                    </button>
+                </div>
+            </div>
+        `;
+    });
+    listEl.innerHTML = html;
+    setCount('pendingCount', items.length);
+}
+
+function renderCompletedOrders(completedOrders) {
+    const listEl = document.getElementById('completedOrderList');
+    const bodyEl = document.querySelector('.barista-grid .barista-panel:nth-child(4) .panel-body');
+    if (!bodyEl) return;
+
+    if (!completedOrders || completedOrders.length === 0) {
+        bodyEl.innerHTML = `
+            <div class="empty-state">
+                <div class="empty-icon">📭</div>
+                <p>Chưa có đơn hoàn thành</p>
+            </div>
+        `;
+        setCount('completedCount', 0);
+        return;
+    }
+
+    const html = completedOrders.map(order => `
+        <div class="completed-badge" data-order-id="${order.id}">
+            <div class="completed-code">
+                <a href="/orders/${order.id}/" target="_blank" style="color: inherit; text-decoration: none;">
+                    ${escapeHtml(order.order_number)} 🔗
+                </a>
+            </div>
+            <div class="completed-time">${escapeHtml(order.order_time)}</div>
+            ${order.customer_name ? `<div class="completed-time">${escapeHtml(order.customer_name)}</div>` : ''}
+        </div>
+    `).join('');
+
+    if (listEl) {
+        listEl.innerHTML = html;
+    } else {
+        bodyEl.innerHTML = `<div class="completed-list" id="completedOrderList">${html}</div>`;
+    }
+
+    setCount('completedCount', completedOrders.length);
+}
+
+function syncDashboard() {
+    fetch('{% url "barista-dashboard-data" %}')
+        .then(response => response.json())
+        .then(data => {
+            if (!data.success) return;
+            const nextPendingIds = new Set(Object.keys(data.pending_orders || {}));
+            const nextCompletedIds = new Set((data.completed_orders || []).map(item => String(item.id)));
+            const newlyPending = [...nextPendingIds].filter(id => !knownPendingIds.has(id));
+            const newlyCompleted = [...nextCompletedIds].filter(id => !knownCompletedIds.has(id));
+            if (newlyPending.length || newlyCompleted.length) {
+                notificationCount += newlyPending.length + newlyCompleted.length;
+                refreshNotificationBadge();
+                pulseBell();
+            }
+            knownPendingIds = nextPendingIds;
+            knownCompletedIds = nextCompletedIds;
+            ordersData = data.pending_orders;
+            renderPendingOrders(data.pending_orders);
+            renderCompletedOrders(data.completed_orders);
+
+            if (selectedOrderId && !data.pending_orders[String(selectedOrderId)]) {
+                selectedOrderId = null;
+                selectedDishId = null;
+                document.getElementById('dishList').innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-icon">????</div>
+                        <p>Ch???n ????n h??ng ????? xem m??n ??n</p>
+                    </div>
+                `;
+                document.getElementById('recipeDetail').innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-icon">????</div>
+                        <p>Ch???n m??n ????? xem c??ng th???c</p>
+                    </div>
+                `;
+            }
+        })
+        .catch(function () {
+            return;
+        });
+}
 
 function selectOrder(orderId, element) {
     
@@ -455,6 +657,49 @@ function selectDish(productId, dishName, size, element) {
     document.getElementById('recipeDetail').innerHTML = html;
 }
 
+syncDashboard();
+setInterval(syncDashboard, 5000);
+
+function setCount(id, count) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = count;
+}
+
+function refreshNotificationBadge() {
+    const badge = document.getElementById('notificationBadge');
+    if (!badge) return;
+    badge.textContent = notificationCount;
+    badge.classList.toggle('hidden', notificationCount <= 0);
+}
+
+function markNotificationsRead() {
+    notificationCount = 0;
+    refreshNotificationBadge();
+    syncDashboard();
+}
+
+function pulseBell() {
+    const btn = document.getElementById('notificationBell');
+    if (!btn) return;
+    btn.animate([{ transform: 'scale(1)' }, { transform: 'scale(1.12)' }, { transform: 'scale(1)' }], { duration: 380, iterations: 1 });
+}
+
+function buildCompletedBadge(orderId, orderNumber, orderTime, customerName) {
+    const badge = document.createElement('div');
+    badge.className = 'completed-badge';
+    badge.dataset.orderId = orderId;
+    badge.innerHTML = `
+        <div class="completed-code">
+            <a href="/orders/${orderId}/" target="_blank" style="color: inherit; text-decoration: none;">
+                ${orderNumber} 🔗
+            </a>
+        </div>
+        <div class="completed-time">${orderTime}</div>
+        ${customerName ? `<div class="completed-time">${customerName}</div>` : ''}
+    `;
+    return badge;
+}
+
 function completeOrder(orderId) {
     
     if (!confirm('Xác nhận đơn này đã hoàn thành?')) return;
@@ -470,33 +715,48 @@ function completeOrder(orderId) {
     .then(r => r.json())
     .then(data => {
         if (data.success) {
-            
-            // Tìm order badge và xóa nó khỏi ô 1
-            const orderBadge = document.querySelector(`[onclick*="selectOrder(${orderId}"]`)?.closest('.order-badge');
+            if (notificationCount > 0) {
+                notificationCount = Math.max(0, notificationCount - 1);
+                refreshNotificationBadge();
+            }
+            const pendingHeader = document.querySelector('.barista-grid .barista-panel:nth-child(1) .panel-header');
+            const completedHeader = document.querySelector('.barista-grid .barista-panel:nth-child(4) .panel-header');
+            const pendingOrders = document.querySelectorAll('.barista-grid .barista-panel:nth-child(1) .order-badge');
+            const completedList = document.getElementById('completedOrderList');
+            const orderBadge = [...pendingOrders].find(el => !!el.querySelector(`[onclick*="selectOrder(${orderId})"]`));
+
             if (orderBadge) {
+                const orderNumber = orderBadge.querySelector('.order-code a')?.textContent?.replace(' 🔗', '').trim() || data.order_number || '';
+                const orderTime = orderBadge.querySelector('.order-time-small')?.textContent || '';
+                const customerName = orderBadge.querySelectorAll('.order-time-small')[1]?.textContent?.replace('👤 ', '').trim() || '';
                 orderBadge.remove();
+
+                if (completedList) {
+                    completedList.prepend(buildCompletedBadge(orderId, orderNumber, orderTime, customerName));
+                }
+
+                setCount('pendingCount', document.querySelectorAll('.barista-grid .barista-panel:nth-child(1) .order-badge').length);
+                setCount('completedCount', document.querySelectorAll('#completedOrderList .completed-badge').length);
+            }
+
+            if (selectedOrderId === orderId) {
+                document.getElementById('dishList').innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-icon">📋</div>
+                        <p>Chọn đơn hàng để xem món ăn</p>
+                    </div>
+                `;
+                document.getElementById('recipeDetail').innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-icon">🧪</div>
+                        <p>Chọn món để xem công thức</p>
+                    </div>
+                `;
+                selectedOrderId = null;
+                selectedDishId = null;
             }
             
-            // Clear ô 2 và 3
-            document.getElementById('dishList').innerHTML = `
-                <div class="empty-state">
-                    <div class="empty-icon">📋</div>
-                    <p>Chọn đơn hàng để xem món ăn</p>
-                </div>
-            `;
-            document.getElementById('recipeDetail').innerHTML = `
-                <div class="empty-state">
-                    <div class="empty-icon">🧪</div>
-                    <p>Chọn món để xem công thức</p>
-                </div>
-            `;
-            
             alert('✅ Đơn hàng đã hoàn thành!');
-            
-            // Reload trang sau 1 giây để cập nhật ô 4
-            setTimeout(() => {
-                location.reload();
-            }, 1000);
         } else {
             console.error('[COMPLETE] Error:', data.message);
             alert('❌ Lỗi: ' + data.message);

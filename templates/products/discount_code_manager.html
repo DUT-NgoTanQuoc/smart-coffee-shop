@@ -1,0 +1,301 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Quản lý mã giảm giá - Smart Coffee Shop{% endblock %}
+
+{% block content %}
+<style>
+    .discount-hero {
+        background: linear-gradient(135deg, #0f766e, #155e75);
+        color: white;
+        border-radius: 20px;
+        padding: 28px;
+        box-shadow: 0 18px 40px rgba(15, 118, 110, 0.2);
+        margin-bottom: 24px;
+    }
+
+    .discount-hero h2 {
+        margin: 0;
+        font-weight: 800;
+        letter-spacing: -0.03em;
+    }
+
+    .discount-hero p {
+        margin: 8px 0 0;
+        color: rgba(255,255,255,0.85);
+    }
+
+    .stat-card {
+        background: white;
+        border-radius: 18px;
+        padding: 18px;
+        box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+        border: 1px solid rgba(15, 118, 110, 0.08);
+        height: 100%;
+    }
+
+    .stat-label {
+        font-size: 13px;
+        color: #64748b;
+    }
+
+    .stat-value {
+        font-size: 28px;
+        font-weight: 800;
+        color: #0f172a;
+    }
+
+    .glass-panel {
+        background: rgba(255,255,255,0.92);
+        border-radius: 22px;
+        box-shadow: 0 18px 50px rgba(15, 23, 42, 0.08);
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        overflow: hidden;
+    }
+
+    .section-title {
+        font-weight: 700;
+        color: #0f172a;
+        margin-bottom: 14px;
+    }
+
+    .code-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 12px;
+        border-radius: 999px;
+        background: #ecfeff;
+        color: #0f766e;
+        font-weight: 700;
+    }
+
+    .table thead th {
+        background: #f8fafc;
+        border-bottom: 1px solid #e2e8f0;
+        font-size: 13px;
+        text-transform: uppercase;
+        letter-spacing: 0.02em;
+    }
+
+    .soft-input {
+        border-radius: 14px;
+        border: 1px solid #cbd5e1;
+    }
+
+    .soft-input:focus {
+        border-color: #0f766e;
+        box-shadow: 0 0 0 0.2rem rgba(15, 118, 110, 0.12);
+    }
+
+    .create-box {
+        background: linear-gradient(180deg, rgba(236,253,245,0.95), rgba(255,255,255,0.98));
+    }
+</style>
+
+<div class="discount-hero">
+    <div class="d-flex flex-wrap justify-content-between align-items-start gap-3">
+        <div>
+            <h2><i class="bi bi-tags"></i> Quản lý mã giảm giá</h2>
+            <p>Tạo, sửa, xóa và xem toàn bộ mã giảm giá đang lưu trong database.</p>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{% url 'product_list' %}" class="btn btn-light">
+                <i class="bi bi-arrow-left"></i> Về sản phẩm
+            </a>
+            <a href="#create-form" class="btn btn-outline-light">
+                <i class="bi bi-plus-circle"></i> Tạo mã mới
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-md-4">
+        <div class="stat-card">
+            <div class="stat-label">Tổng mã</div>
+            <div class="stat-value">{{ discount_codes|length }}</div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="stat-card">
+            <div class="stat-label">Mã đang hoạt động</div>
+            <div class="stat-value">{{ discount_codes|dictsortreversed:"is_active"|length }}</div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="stat-card">
+            <div class="stat-label">Trang này cập nhật trực tiếp DB</div>
+            <div class="stat-value">Yes</div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-7">
+        <div class="glass-panel p-0">
+            <div class="p-4 border-bottom">
+                <div class="section-title mb-0"><i class="bi bi-card-list"></i> Danh sách mã hiện có</div>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th>Mã</th>
+                            <th>Phần trăm</th>
+                            <th>Điều kiện</th>
+                            <th>Hiệu lực</th>
+                            <th>Trạng thái</th>
+                            <th class="text-end">Thao tác</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for code in discount_codes %}
+                        <tr>
+                            <td>
+                                <div class="code-pill"><i class="bi bi-ticket-perforated"></i> {{ code.code }}</div>
+                                <div class="small text-muted mt-1">{{ code.name|default:"Chưa đặt tên" }}</div>
+                            </td>
+                            <td class="fw-semibold">{{ code.discount_percent }}%</td>
+                            <td>
+                                <div class="small">Đơn tối thiểu: {{ code.min_order_amount|floatformat:0 }}đ</div>
+                                <div class="small">Giảm tối đa: {% if code.max_discount_amount %}{{ code.max_discount_amount|floatformat:0 }}đ{% else %}-{% endif %}</div>
+                            </td>
+                            <td>
+                                <div class="small">Từ: {% if code.valid_from %}{{ code.valid_from|date:"d/m/Y H:i" }}{% else %}-{% endif %}</div>
+                                <div class="small">Đến: {% if code.valid_to %}{{ code.valid_to|date:"d/m/Y H:i" }}{% else %}-{% endif %}</div>
+                            </td>
+                            <td>
+                                {% if code.is_active %}
+                                <span class="badge bg-success">Đang hoạt động</span>
+                                {% else %}
+                                <span class="badge bg-secondary">Tạm khóa</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-end">
+                                <button class="btn btn-sm btn-outline-primary" data-bs-toggle="collapse" data-bs-target="#edit-{{ code.id }}">
+                                    <i class="bi bi-pencil"></i>
+                                </button>
+                                <form method="post" action="{% url 'discount_code_delete' code.id %}" class="d-inline" onsubmit="return confirm('Xóa mã {{ code.code }}?');">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-sm btn-outline-danger">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                        <tr class="collapse" id="edit-{{ code.id }}">
+                            <td colspan="6" class="bg-light">
+                                <form method="post" action="{% url 'discount_code_update' code.id %}" class="row g-3 p-3">
+                                    {% csrf_token %}
+                                    <div class="col-md-3">
+                                        <label class="form-label">Mã</label>
+                                        <input type="text" name="code" class="form-control soft-input text-uppercase" value="{{ code.code }}" required>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label">Tên</label>
+                                        <input type="text" name="name" class="form-control soft-input" value="{{ code.name|default:'' }}">
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label">%</label>
+                                        <input type="number" step="0.01" min="0.01" max="100" name="discount_percent" class="form-control soft-input" value="{{ code.discount_percent }}">
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label">Đơn tối thiểu</label>
+                                        <input type="number" step="1000" min="0" name="min_order_amount" class="form-control soft-input" value="{{ code.min_order_amount|floatformat:0 }}">
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label">Giảm tối đa</label>
+                                        <input type="number" step="1000" min="0" name="max_discount_amount" class="form-control soft-input" value="{% if code.max_discount_amount %}{{ code.max_discount_amount|floatformat:0 }}{% endif %}">
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label">Hiệu lực từ</label>
+                                        <input type="datetime-local" name="valid_from" class="form-control soft-input">
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label">Hiệu lực đến</label>
+                                        <input type="datetime-local" name="valid_to" class="form-control soft-input">
+                                    </div>
+                                    <div class="col-md-12">
+                                        <label class="form-label">Mô tả</label>
+                                        <textarea name="description" class="form-control soft-input" rows="2">{{ code.description|default:'' }}</textarea>
+                                    </div>
+                                    <div class="col-12 d-flex justify-content-between align-items-center">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" name="is_active" id="edit-active-{{ code.id }}" {% if code.is_active %}checked{% endif %}>
+                                            <label class="form-check-label" for="edit-active-{{ code.id }}">Đang hoạt động</label>
+                                        </div>
+                                        <button type="submit" class="btn btn-primary">
+                                            <i class="bi bi-check2-circle"></i> Lưu thay đổi
+                                        </button>
+                                    </div>
+                                </form>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="6" class="text-center text-muted py-5">Chưa có mã giảm giá nào. Hãy tạo mã đầu tiên ở khung bên phải.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-5" id="create-form">
+        <div class="glass-panel create-box p-4">
+            <div class="section-title">
+                <i class="bi bi-plus-circle"></i> Tạo mã giảm giá mới
+            </div>
+            <form method="post" action="{% url 'discount_code_create' %}" class="row g-3">
+                {% csrf_token %}
+                <div class="col-md-6">
+                    <label class="form-label">Mã</label>
+                    <input type="text" name="code" class="form-control soft-input text-uppercase" required placeholder="SUMMER25">
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Tên chương trình</label>
+                    <input type="text" name="name" class="form-control soft-input" placeholder="Ưu đãi mùa hè">
+                </div>
+                <div class="col-12">
+                    <label class="form-label">Mô tả</label>
+                    <textarea name="description" class="form-control soft-input" rows="2" placeholder="Ghi chú"></textarea>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Phần trăm giảm</label>
+                    <input type="number" name="discount_percent" class="form-control soft-input" min="0.01" max="100" step="0.01" required placeholder="10">
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Đơn tối thiểu</label>
+                    <input type="number" name="min_order_amount" class="form-control soft-input" min="0" step="1000" value="0">
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Giảm tối đa</label>
+                    <input type="number" name="max_discount_amount" class="form-control soft-input" min="0" step="1000" placeholder="Bỏ trống nếu không giới hạn">
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Đang hoạt động</label>
+                    <div class="form-check mt-2">
+                        <input class="form-check-input" type="checkbox" name="is_active" id="create-active" checked>
+                        <label class="form-check-label" for="create-active">Bật mã ngay sau khi lưu</label>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Hiệu lực từ</label>
+                    <input type="datetime-local" name="valid_from" class="form-control soft-input">
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Hiệu lực đến</label>
+                    <input type="datetime-local" name="valid_to" class="form-control soft-input">
+                </div>
+                <div class="col-12 d-grid">
+                    <button type="submit" class="btn btn-primary btn-lg">
+                        <i class="bi bi-save"></i> Lưu mã giảm giá
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

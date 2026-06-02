@@ -10,7 +10,7 @@ import random
 import sys
 import unicodedata
 from collections import defaultdict
-from datetime import datetime, timedelta, time
+from datetime import date, datetime, timedelta, time
 from decimal import Decimal
 from pathlib import Path
 
@@ -30,7 +30,7 @@ from apps.analytics.models import DailyStat  # noqa: E402
 from apps.customers.models import Customer  # noqa: E402
 from apps.orders.models import DiscountCode, Order, OrderItem, Payment  # noqa: E402
 from apps.products.models import Product  # noqa: E402
-from apps.staff.models import Staff, WorkLog  # noqa: E402
+from apps.staff.models import ShiftAssignment, Staff, WorkLog  # noqa: E402
 
 
 LAST_NAMES = [
@@ -427,6 +427,204 @@ def seed_worklogs(days=60):
     return created
 
 
+def seed_june_demo_data(year=2026, month=6):
+    """
+    Add dense demo data for June so the UI has enough records to test.
+    """
+    first_day = date(year, month, 1)
+    last_day = date(year, month + 1, 1) - timedelta(days=1)
+
+    customers = list(Customer.objects.all())
+    products = list(Product.objects.filter(is_available=True))
+    staff_members = list(Staff.objects.all().order_by('role', 'name'))
+    active_staff = [staff for staff in staff_members if staff.is_active]
+
+    if not customers or not products or not staff_members:
+        return {'orders': 0, 'worklogs': 0, 'assignments': 0}
+
+    june_staff_pool = active_staff or staff_members
+    role_priority = {'manager': 0, 'cashier': 1, 'barista': 2, 'parttime': 3}
+    june_staff_pool = sorted(june_staff_pool, key=lambda s: (role_priority.get(s.role, 9), s.name))
+
+    existing_assignments = set(
+        ShiftAssignment.objects.filter(work_date__gte=first_day, work_date__lte=last_day).values_list(
+            'staff_id', 'work_date', 'shift'
+        )
+    )
+
+    assignment_rows = []
+    worklog_rows = []
+    order_rows = []
+    item_payloads = []
+    payment_rows = []
+    used_order_numbers = set(Order.objects.values_list('order_number', flat=True))
+    seq_map = _extract_existing_sequences()
+
+    for day_offset in range((last_day - first_day).days + 1):
+        work_date = first_day + timedelta(days=day_offset)
+        day_seed = year * 10000 + month * 100 + work_date.day
+        rng = random.Random(20260600 + day_seed)
+
+        daily_staff = june_staff_pool[: min(len(june_staff_pool), max(8, len(june_staff_pool) // 3))]
+        rng.shuffle(daily_staff)
+
+        # Shift plan: enough entries to test staffing warnings, filters, payroll and CRUD.
+        for shift, base_count in [('morning', 4), ('afternoon', 4), ('evening', 3)]:
+            count = min(len(daily_staff), base_count + rng.randint(0, 3))
+            selected = daily_staff[:count]
+            for staff in selected:
+                key = (staff.id, work_date, shift)
+                if key in existing_assignments:
+                    continue
+                assignment_rows.append(
+                    ShiftAssignment(
+                        staff=staff,
+                        work_date=work_date,
+                        shift=shift,
+                        hourly_rate=staff.salary,
+                        note='Seed demo tháng 6',
+                    )
+                )
+                existing_assignments.add(key)
+
+        # Attendance records for most active staff in June.
+        worklog_staff = daily_staff[: min(len(daily_staff), 10 + rng.randint(0, 6))]
+        for staff in worklog_staff:
+            if WorkLog.objects.filter(staff=staff, work_date=work_date).exists():
+                continue
+            check_in_hour = rng.randint(6, 10)
+            check_in_min = rng.choice([0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55])
+            duration = rng.uniform(6.0, 10.0)
+            check_in = time(check_in_hour, check_in_min)
+            out_dt = datetime.combine(work_date, check_in) + timedelta(hours=duration)
+            worklog_rows.append(
+                WorkLog(
+                    staff=staff,
+                    work_date=work_date,
+                    check_in=check_in,
+                    check_out=out_dt.time(),
+                    hours_worked=round(duration, 2),
+                )
+            )
+
+        # Orders spread through June with enough variety for reporting and status testing.
+        daily_orders = 18 + rng.randint(0, 16)
+        for _ in range(daily_orders):
+            random_time = time(
+                hour=rng.randint(6, 22),
+                minute=rng.randint(0, 59),
+                second=rng.randint(0, 59),
+            )
+            order_dt = timezone.make_aware(datetime.combine(work_date, random_time))
+            date_key = order_dt.strftime('%Y%m%d')
+            seq = seq_map[date_key] + 1
+            order_no = f'ORD{date_key}{seq:03d}'
+            while order_no in used_order_numbers:
+                seq += 1
+                order_no = f'ORD{date_key}{seq:03d}'
+            seq_map[date_key] = seq
+            used_order_numbers.add(order_no)
+
+            customer = rng.choice(customers) if rng.random() < 0.9 else None
+            staff = rng.choice(june_staff_pool)
+            line_count = rng.randint(1, 4)
+            total = Decimal('0')
+            order_items = []
+            for _line in range(line_count):
+                product = rng.choice(products)
+                size = rng.choice(['S', 'M', 'L'])
+                price = Decimal(product.get_price(size) or product.price_medium or product.price_small or product.price_large or 0)
+                quantity = rng.randint(1, 3)
+                subtotal = (price * quantity).quantize(Decimal('0.01'))
+                total += subtotal
+                order_items.append(
+                    {
+                        'product': product,
+                        'size': size,
+                        'quantity': quantity,
+                        'price': price,
+                        'subtotal': subtotal,
+                    }
+                )
+
+            discount = Decimal('0')
+            if rng.random() < 0.4:
+                percent = Decimal(str(rng.choice([5, 8, 10, 12, 15, 20])))
+                discount = (total * percent / Decimal('100')).quantize(Decimal('0.01'))
+                discount = min(discount, total)
+
+            final_amount = (total - discount).quantize(Decimal('0.01'))
+            status = rng.choices(['completed', 'pending', 'preparing'], weights=[78, 12, 10], k=1)[0]
+            points_earned = int(final_amount / Decimal('10000')) if status == 'completed' and customer else 0
+
+            order_rows.append(
+                Order(
+                    order_number=order_no,
+                    customer=customer,
+                    staff=staff,
+                    total_amount=total,
+                    discount=discount,
+                    final_amount=final_amount,
+                    status=status,
+                    order_date=order_dt,
+                    points_earned=points_earned,
+                    points_used=0,
+                )
+            )
+            item_payloads.append(order_items)
+            payment_rows.append(
+                {
+                    'payment_method': rng.choice(['cash', 'card', 'momo']),
+                    'amount': final_amount,
+                    'payment_date': order_dt + timedelta(minutes=rng.randint(1, 25)),
+                }
+            )
+
+    with transaction.atomic():
+        if assignment_rows:
+            ShiftAssignment.objects.bulk_create(assignment_rows, batch_size=500, ignore_conflicts=True)
+
+        if worklog_rows:
+            WorkLog.objects.bulk_create(worklog_rows, batch_size=500, ignore_conflicts=True)
+
+        created_orders = Order.objects.bulk_create(order_rows, batch_size=400)
+        order_item_rows = []
+        payment_model_rows = []
+        for idx, order in enumerate(created_orders):
+            for payload in item_payloads[idx]:
+                order_item_rows.append(
+                    OrderItem(
+                        order=order,
+                        product=payload['product'],
+                        size=payload['size'],
+                        quantity=payload['quantity'],
+                        price=payload['price'],
+                        customizations=[],
+                        subtotal=payload['subtotal'],
+                    )
+                )
+            payment_data = payment_rows[idx]
+            payment_model_rows.append(
+                Payment(
+                    order=order,
+                    payment_method=payment_data['payment_method'],
+                    amount=payment_data['amount'],
+                    payment_date=payment_data['payment_date'],
+                )
+            )
+
+        if order_item_rows:
+            OrderItem.objects.bulk_create(order_item_rows, batch_size=1000)
+        if payment_model_rows:
+            Payment.objects.bulk_create(payment_model_rows, batch_size=1000)
+
+    return {
+        'orders': len(order_rows),
+        'worklogs': len(worklog_rows),
+        'assignments': len(assignment_rows),
+    }
+
+
 def main():
     random.seed(20260502)
     print('Seeding realistic demo data...')
@@ -446,6 +644,12 @@ def main():
 
     added_logs = seed_worklogs(days=60)
     print(f'  + Work logs: {added_logs}')
+
+    june = seed_june_demo_data(year=2026, month=6)
+    print(
+        '  + June demo data: '
+        f"orders={june['orders']}, worklogs={june['worklogs']}, assignments={june['assignments']}"
+    )
 
     print('Done.')
 

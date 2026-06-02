@@ -3,7 +3,6 @@ Role-based dashboard views for the coffee shop.
 """
 
 import json
-from datetime import timedelta
 from decimal import Decimal
 
 from django.contrib import messages
@@ -116,7 +115,7 @@ def barista_dashboard(request):
     )
 
     completed_orders = (
-        Order.objects.filter(status='completed', order_date__gte=now - timedelta(hours=24))
+        Order.objects.filter(status='completed', order_date__date=now.date())
         .select_related('customer', 'staff')
         .order_by('-order_date')
     )
@@ -156,6 +155,8 @@ def barista_dashboard(request):
             'items': items_list,
         }
 
+    notification_count = pending_orders.count()
+
     return render(
         request,
         'dashboards/barista_dashboard.html',
@@ -164,8 +165,84 @@ def barista_dashboard(request):
             'completed_orders': completed_orders,
             'low_stock_ingredients': low_stock,
             'queue_count': pending_orders.count(),
+            'notification_count': notification_count,
             'orders_data_json': json.dumps(orders_data),
         },
+    )
+
+
+@login_required
+def barista_dashboard_data(request):
+    """Realtime payload for the barista dashboard."""
+    if not _has_any_role(request.user, 'barista', 'admin', 'manager'):
+        return JsonResponse({'success': False, 'message': 'Unauthorized'}, status=403)
+
+    now = timezone.now()
+    pending_orders = (
+        Order.objects.filter(status__in=['pending', 'preparing'])
+        .select_related('customer', 'staff')
+        .prefetch_related('items__product', 'items__product__recipes__ingredient')
+        .order_by('order_date')
+    )
+
+    completed_orders = (
+        Order.objects.filter(status='completed', order_date__date=now.date())
+        .select_related('customer', 'staff')
+        .order_by('-order_date')
+    )
+
+    orders_data = {}
+    for order in pending_orders:
+        items_list = []
+        for item in order.items.all():
+            recipes_list = []
+            if item.product:
+                for recipe in item.product.recipes.all():
+                    recipes_list.append(
+                        {
+                            'ingredient_name': recipe.ingredient.name,
+                            'quantity': float(recipe.get_quantity(item.size)),
+                            'unit': recipe.ingredient.unit or 'pcs',
+                        }
+                    )
+
+            items_list.append(
+                {
+                    'id': item.id,
+                    'product_id': item.product.id if item.product else None,
+                    'name': item.product.name if item.product else 'San pham da xoa',
+                    'size': item.size,
+                    'quantity': item.quantity,
+                    'recipes': recipes_list,
+                }
+            )
+
+        orders_data[str(order.id)] = {
+            'id': order.id,
+            'number': order.order_number,
+            'customer_name': order.customer.name if order.customer else '',
+            'order_time': order.order_date.strftime('%H:%M:%S') if order.order_date else '',
+            'items': items_list,
+        }
+
+    completed_list = [
+        {
+            'id': order.id,
+            'order_number': order.order_number,
+            'order_time': order.order_date.strftime('%H:%M:%S') if order.order_date else '',
+            'customer_name': order.customer.name if order.customer else '',
+        }
+        for order in completed_orders
+    ]
+
+    return JsonResponse(
+        {
+            'success': True,
+            'pending_count': pending_orders.count(),
+            'completed_count': completed_orders.count(),
+            'pending_orders': orders_data,
+            'completed_orders': completed_list,
+        }
     )
 
 
