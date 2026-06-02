@@ -83,7 +83,7 @@ def _build_payroll_summary(month, year):
         row = payroll_map[assignment.staff_id]
         row['staff'] = assignment.staff
         hours = Decimal(str(assignment.planned_hours or 0))
-        rate = Decimal(str(assignment.effective_hourly_rate or 0))
+        rate = Decimal(str(assignment.staff.salary or 0))
         pay = hours * rate
 
         row['assigned_hours'] += hours
@@ -99,11 +99,7 @@ def _build_payroll_summary(month, year):
     for staff_id, row in payroll_map.items():
         assigned_hours = row['assigned_hours']
         actual_hours = work_hours_map.get(staff_id, Decimal('0'))
-        avg_rate = (
-            (row['weighted_rate_total'] / assigned_hours).quantize(Decimal('0.01'))
-            if assigned_hours > 0
-            else Decimal('0')
-        )
+        avg_rate = Decimal(str(row['staff'].salary or 0)).quantize(Decimal('0.01'))
 
         row['actual_hours'] = actual_hours
         row['avg_hourly_rate'] = avg_rate

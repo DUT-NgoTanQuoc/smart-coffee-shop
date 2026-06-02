@@ -7,7 +7,7 @@
 <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
     <div>
         <h2 class="mb-1"><i class="bi bi-cash-coin"></i> Tổng hợp lương theo giờ</h2>
-        <small class="text-muted">Thống kê từ lịch phân ca và chấm công theo tháng.</small>
+        <small class="text-muted">Thống kê từ lịch phân ca theo tháng.</small>
     </div>
     <a href="{% url 'staff_list' %}" class="btn btn-outline-secondary">
         <i class="bi bi-arrow-left"></i> Về quản lý nhân viên
@@ -42,7 +42,7 @@
 </div>
 
 <div class="row g-3 mb-4">
-    <div class="col-md-4">
+    <div class="col-md-6">
         <div class="card border-start border-primary border-4 h-100">
             <div class="card-body">
                 <div class="text-muted small">Tổng giờ phân ca</div>
@@ -50,15 +50,7 @@
             </div>
         </div>
     </div>
-    <div class="col-md-4">
-        <div class="card border-start border-success border-4 h-100">
-            <div class="card-body">
-                <div class="text-muted small">Tổng giờ chấm công</div>
-                <div class="h4 mb-0">{{ total_actual_hours|floatformat:2 }}h</div>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-4">
+    <div class="col-md-6">
         <div class="card border-start border-info border-4 h-100">
             <div class="card-body">
                 <div class="text-muted small">Tổng lương ước tính</div>
@@ -80,8 +72,7 @@
                         <th>Nhân viên</th>
                         <th>Ca đã phân</th>
                         <th>Giờ phân ca</th>
-                        <th>Giờ chấm công</th>
-                        <th>Lương giờ TB</th>
+                        <th>Lương giờ</th>
                         <th>Lương ước tính</th>
                     </tr>
                 </thead>
@@ -91,13 +82,12 @@
                         <td>{{ row.staff.name }}</td>
                         <td>{{ row.shift_count }}</td>
                         <td>{{ row.assigned_hours|floatformat:2 }}h</td>
-                        <td>{{ row.actual_hours|floatformat:2 }}h</td>
                         <td>{{ row.avg_hourly_rate|floatformat:0 }}đ</td>
                         <td><strong>{{ row.total_pay|floatformat:0 }}đ</strong></td>
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="6" class="text-center text-muted py-3">Chưa có dữ liệu phân ca trong tháng này.</td>
+                        <td colspan="5" class="text-center text-muted py-3">Chưa có dữ liệu phân ca trong tháng này.</td>
                     </tr>
                     {% endfor %}
                 </tbody>

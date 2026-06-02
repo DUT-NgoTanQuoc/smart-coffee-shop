@@ -42,6 +42,9 @@
                         <a href="{% url 'product_list' %}" class="list-group-item list-group-item-action bg-dark text-white">
                             <i class="bi bi-cup"></i> Sản phẩm
                         </a>
+                        <a href="{% url 'discount_code_manager' %}" class="list-group-item list-group-item-action bg-dark text-white">
+                            <i class="bi bi-tags"></i> Mã giảm giá
+                        </a>
                         <a href="{% url 'ingredient_list' %}" class="list-group-item list-group-item-action bg-dark text-white">
                             <i class="bi bi-box-seam"></i> Nguyên liệu
                         </a>
@@ -55,11 +58,6 @@
                             <i class="bi bi-calendar-event"></i> Lịch phân ca
                         </a>
                         
-                        <div class="text-white-50 px-3 py-2 small mt-3">PHÂN TÍCH AI</div>
-                        <div class="px-3 py-2 small text-white-50">
-                            Đã tích hợp vào Dashboard và tab Nguyên liệu
-                        </div>
-                    
                     {% else %}
                         <!-- CASHIER MENU (role_id = 2) -->
                         {% if user_account.role_id == 2 %}
@@ -127,9 +125,6 @@
                             {% endif %}
                         </span>
                         {% if user.is_authenticated %}
-                        <a href="/admin/" class="btn btn-sm btn-outline-secondary me-2">
-                            <i class="bi bi-gear"></i> Admin
-                        </a>
                         <a href="{% url 'logout' %}" class="btn btn-sm btn-outline-danger">
                             <i class="bi bi-box-arrow-right"></i> Đăng xuất
                         </a>

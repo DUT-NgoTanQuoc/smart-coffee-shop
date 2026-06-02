@@ -24,16 +24,16 @@
             radial-gradient(circle at top right, rgba(245, 158, 11, 0.12), transparent 24%),
             var(--barista-bg);
     }
-    
+
     .barista-panel {
         background: white;
         border-radius: 8px;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
         display: flex;
         flex-direction: column;
         overflow: hidden;
     }
-    
+
     .panel-header {
         background: linear-gradient(135deg, var(--barista-accent) 0%, #155e75 100%);
         color: white;
@@ -54,8 +54,8 @@
 
     .bell-btn {
         position: relative;
-        border: 1px solid rgba(255,255,255,0.35);
-        background: rgba(255,255,255,0.12);
+        border: 1px solid rgba(255, 255, 255, 0.35);
+        background: rgba(255, 255, 255, 0.12);
         color: white;
         border-radius: 999px;
         width: 40px;
@@ -69,7 +69,7 @@
 
     .bell-btn:hover {
         transform: translateY(-1px);
-        background: rgba(255,255,255,0.2);
+        background: rgba(255, 255, 255, 0.2);
     }
 
     .bell-badge {
@@ -93,188 +93,101 @@
     .bell-badge.hidden {
         display: none;
     }
-    
+
     .panel-body {
         flex: 1;
         overflow-y: auto;
         padding: 15px;
     }
-    
-    /* Ô1: Đơn chưa hoàn */
-    .order-list {
+
+    .order-list,
+    .dish-list,
+    .completed-list,
+    .recipe-details {
         display: flex;
         flex-direction: column;
         gap: 8px;
     }
-    
-    .order-badge {
+
+    .order-badge,
+    .dish-item,
+    .completed-badge {
         background: white;
-        border: 2px solid #007bff;
         border-radius: 6px;
         padding: 12px;
         cursor: pointer;
         transition: all 0.3s;
+    }
+
+    .order-badge {
+        border: 2px solid #007bff;
         display: flex;
         justify-content: space-between;
         align-items: center;
     }
-    
+
     .order-badge:hover {
         background: #f0f8ff;
         box-shadow: 0 4px 12px rgba(0, 123, 255, 0.2);
         transform: translateY(-2px);
     }
-    
+
     .order-badge.selected {
         background: #007bff;
         color: white;
     }
-    
-    .order-code {
-        font-weight: bold;
-        font-size: 16px;
-    }
-    
-    .order-time-small {
-        font-size: 11px;
-        color: #999;
-        display: block;
-    }
-    
-    .complete-btn {
-        background: #28a745;
-        color: white;
-        border: none;
-        border-radius: 4px;
-        padding: 4px 12px;
-        font-size: 12px;
-        cursor: pointer;
-        transition: all 0.3s;
-    }
-    
-    .complete-btn:hover {
-        background: #218838;
-    }
-    
-    /* Ô2: Danh sách món */
-    .dish-list {
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-    }
-    
+
     .dish-item {
         background: #f9f9f9;
         border-left: 4px solid #ffc107;
-        padding: 10px;
-        border-radius: 4px;
-        cursor: pointer;
-        transition: all 0.3s;
     }
-    
+
     .dish-item:hover {
         background: #fff;
         box-shadow: 0 2px 8px rgba(255, 193, 7, 0.2);
     }
-    
+
     .dish-item.selected {
         background: #ffc107;
         color: white;
     }
-    
-    .dish-name {
-        font-weight: 600;
-        font-size: 14px;
-    }
-    
-    .dish-size {
-        font-size: 12px;
-        color: #666;
-        margin-top: 3px;
-    }
-    
-    .dish-item.selected .dish-size {
-        color: rgba(255,255,255,0.8);
-    }
-    
-    /* Ô3: Công thức */
-    .recipe-details {
-        display: flex;
-        flex-direction: column;
-        gap: 10px;
-    }
-    
-    .recipe-header {
-        font-weight: bold;
-        font-size: 14px;
-        color: #333;
-        margin-bottom: 8px;
-    }
-    
-    .ingredient-item {
-        background: #f0f0f0;
-        padding: 10px;
-        border-radius: 4px;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        border-left: 3px solid #17a2b8;
-    }
-    
-    .ingredient-name {
-        font-weight: 500;
-        color: #333;
-    }
-    
-    .ingredient-qty {
-        background: white;
-        padding: 4px 8px;
-        border-radius: 3px;
-        font-size: 12px;
-        font-weight: bold;
-        color: #17a2b8;
-    }
-    
-    /* Ô4: Đơn đã hoàn */
-    .completed-list {
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-    }
-    
+
     .completed-badge {
-        background: white;
         border: 2px solid #28a745;
-        border-radius: 6px;
-        padding: 12px;
-        cursor: pointer;
-        transition: all 0.3s;
     }
-    
+
     .completed-badge:hover {
         background: #f0fff4;
         box-shadow: 0 4px 12px rgba(40, 167, 69, 0.2);
         transform: translateY(-2px);
     }
-    
-    .completed-code {
+
+    .order-code,
+    .completed-code,
+    .dish-name {
         font-weight: bold;
-        font-size: 14px;
-        color: #28a745;
     }
-    
+
+    .order-time-small,
+    .dish-size,
     .completed-time {
         font-size: 11px;
         color: #999;
+        display: block;
         margin-top: 3px;
     }
-    
+
+    .completed-code {
+        color: #28a745;
+        font-size: 14px;
+    }
+
     .empty-state {
         text-align: center;
         color: #999;
         padding: 30px 20px;
     }
-    
+
     .empty-icon {
         font-size: 2rem;
         margin-bottom: 10px;
@@ -282,12 +195,11 @@
 </style>
 
 <div class="barista-grid">
-    <!-- Ô1: Đơn hàng chưa hoàn thành -->
     <div class="barista-panel">
         <div class="panel-header">
             <span><i class="bi bi-hourglass-split"></i> Chưa hoàn thành (<span id="pendingCount">{{ pending_orders|length }}</span>)</span>
             <div class="header-actions">
-                <button type="button" class="bell-btn" id="notificationBell" title="Thong bao moi" onclick="markNotificationsRead()">
+                <button type="button" class="bell-btn" id="notificationBell" title="Thông báo mới" onclick="markNotificationsRead()">
                     <i class="bi bi-bell"></i>
                     <span class="bell-badge {% if notification_count == 0 %}hidden{% endif %}" id="notificationBadge">{{ notification_count|default:0 }}</span>
                 </button>
@@ -328,8 +240,7 @@
             {% endif %}
         </div>
     </div>
-    
-    <!-- Ô2: Danh sách món ăn -->
+
     <div class="barista-panel">
         <div class="panel-header">
             <i class="bi bi-cup"></i> Danh sách món
@@ -343,8 +254,7 @@
             </div>
         </div>
     </div>
-    
-    <!-- Ô3: Công thức -->
+
     <div class="barista-panel">
         <div class="panel-header">
             <i class="bi bi-receipt"></i> Công thức
@@ -358,8 +268,7 @@
             </div>
         </div>
     </div>
-    
-    <!-- Ô4: Đơn đã hoàn thành -->
+
     <div class="barista-panel">
         <div class="panel-header">
             <span><i class="bi bi-check-circle"></i> Đã hoàn thành (<span id="completedCount">{{ completed_orders|length }}</span>)</span>
@@ -395,17 +304,9 @@
 let selectedOrderId = null;
 let selectedDishId = null;
 let notificationCount = Number('{{ notification_count|default:0 }}');
-
-// D? li?u t?t c? ??n h?ng + m?n + c?ng th?c t? server (JSON)
 let ordersData = JSON.parse('{{ orders_data_json|escapejs }}');
 let knownPendingIds = new Set(Object.keys(ordersData));
 let knownCompletedIds = new Set(Array.from(document.querySelectorAll('#completedOrderList .completed-badge')).map(el => String(el.dataset.orderId || '')));
-
-Object.keys(ordersData).forEach(orderId => {
-    const order = ordersData[orderId];
-    order.items.forEach(item => {
-    });
-});
 
 function escapeHtml(text) {
     return String(text || '').replace(/[&<>"']/g, function (ch) {
@@ -413,27 +314,43 @@ function escapeHtml(text) {
     });
 }
 
+function setCount(id, count) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = count;
+}
+
+function refreshNotificationBadge() {
+    const badge = document.getElementById('notificationBadge');
+    if (!badge) return;
+    badge.textContent = notificationCount;
+    badge.classList.toggle('hidden', notificationCount <= 0);
+}
+
+function pulseBell() {
+    const btn = document.getElementById('notificationBell');
+    if (!btn) return;
+    btn.animate([{ transform: 'scale(1)' }, { transform: 'scale(1.12)' }, { transform: 'scale(1)' }], { duration: 380, iterations: 1 });
+}
+
 function renderPendingOrders(pendingOrders) {
     const listEl = document.querySelector('.barista-grid .barista-panel:nth-child(1) .order-list');
-    const emptyHtml = `
-        <div class="empty-state">
-            <div class="empty-icon">✅</div>
-            <p>Không có đơn chưa hoàn</p>
-        </div>
-    `;
     if (!listEl) return;
 
     if (!pendingOrders || Object.keys(pendingOrders).length === 0) {
-        listEl.innerHTML = emptyHtml;
+        listEl.innerHTML = `
+            <div class="empty-state">
+                <div class="empty-icon">✅</div>
+                <p>Không có đơn chưa hoàn</p>
+            </div>
+        `;
         setCount('pendingCount', 0);
         return;
     }
 
     const items = Object.values(pendingOrders);
-    let html = '';
-    items.forEach(order => {
+    listEl.innerHTML = items.map(order => {
         const customerHtml = order.customer_name ? `<span class="order-time-small">👤 ${escapeHtml(order.customer_name)}</span>` : '';
-        html += `
+        return `
             <div class="order-badge" style="display: flex; justify-content: space-between; align-items: center;">
                 <div style="flex: 1; cursor: pointer;" onclick="selectOrder(${order.id}, this.parentElement)">
                     <div class="order-code">
@@ -454,8 +371,7 @@ function renderPendingOrders(pendingOrders) {
                 </div>
             </div>
         `;
-    });
-    listEl.innerHTML = html;
+    }).join('');
     setCount('pendingCount', items.length);
 }
 
@@ -505,53 +421,45 @@ function syncDashboard() {
             const nextCompletedIds = new Set((data.completed_orders || []).map(item => String(item.id)));
             const newlyPending = [...nextPendingIds].filter(id => !knownPendingIds.has(id));
             const newlyCompleted = [...nextCompletedIds].filter(id => !knownCompletedIds.has(id));
+
             if (newlyPending.length || newlyCompleted.length) {
-                notificationCount += newlyPending.length + newlyCompleted.length;
-                refreshNotificationBadge();
                 pulseBell();
             }
+
             knownPendingIds = nextPendingIds;
             knownCompletedIds = nextCompletedIds;
             ordersData = data.pending_orders;
             renderPendingOrders(data.pending_orders);
             renderCompletedOrders(data.completed_orders);
+            notificationCount = data.pending_count || 0;
+            refreshNotificationBadge();
 
             if (selectedOrderId && !data.pending_orders[String(selectedOrderId)]) {
                 selectedOrderId = null;
                 selectedDishId = null;
                 document.getElementById('dishList').innerHTML = `
                     <div class="empty-state">
-                        <div class="empty-icon">????</div>
-                        <p>Ch???n ????n h??ng ????? xem m??n ??n</p>
+                        <div class="empty-icon">📋</div>
+                        <p>Chọn đơn hàng để xem món ăn</p>
                     </div>
                 `;
                 document.getElementById('recipeDetail').innerHTML = `
                     <div class="empty-state">
-                        <div class="empty-icon">????</div>
-                        <p>Ch???n m??n ????? xem c??ng th???c</p>
+                        <div class="empty-icon">🧪</div>
+                        <p>Chọn món để xem công thức</p>
                     </div>
                 `;
             }
         })
-        .catch(function () {
-            return;
-        });
+        .catch(function () {});
 }
 
 function selectOrder(orderId, element) {
-    
-    // Lấy orderId từ string nếu cần
     orderId = parseInt(orderId);
     selectedOrderId = orderId;
     selectedDishId = null;
-    
-    
-    // Highlight selected order
-    document.querySelectorAll('.order-badge').forEach(el => {
-        el.classList.remove('selected');
-    });
-    
-    // Tìm order-badge cha của element
+
+    document.querySelectorAll('.order-badge').forEach(el => el.classList.remove('selected'));
     let orderBadge = element;
     if (element && element.classList && !element.classList.contains('order-badge')) {
         orderBadge = element.closest('.order-badge');
@@ -559,23 +467,19 @@ function selectOrder(orderId, element) {
     if (orderBadge) {
         orderBadge.classList.add('selected');
     }
-    
-    // Load dishes từ dữ liệu
+
     const order = ordersData[orderId];
     if (!order) {
-        console.error('Order not found! ID:', orderId, 'Available:', Object.keys(ordersData));
         document.getElementById('dishList').innerHTML = '<div class="empty-state" style="text-align: center;"><p style="color: red;">❌ Không tìm thấy dữ liệu đơn #' + orderId + '</p></div>';
         return;
     }
-    
-    
+
     let html = '';
     if (order.items.length === 0) {
-        console.warn('No items in order:', orderId);
         html = '<div class="empty-state"><p>⚠️ Đơn này không có sản phẩm</p></div>';
     } else {
         html = '<div class="dish-list">';
-        order.items.forEach((item, idx) => {
+        order.items.forEach(item => {
             html += `
                 <div class="dish-item" onclick="selectDish(${item.product_id}, '${item.name.replace(/'/g, "\\'")}', '${item.size}', this)">
                     <div class="dish-name">☕ ${item.name}</div>
@@ -585,44 +489,21 @@ function selectOrder(orderId, element) {
         });
         html += '</div>';
     }
-    
-    const dishListEl = document.getElementById('dishList');
-    if (dishListEl) {
-        dishListEl.innerHTML = html;
-    } else {
-        console.error('dishList element not found!');
-    }
-    
-    const recipeEl = document.getElementById('recipeDetail');
-    if (recipeEl) {
-        recipeEl.innerHTML = '<div class="empty-state"><div class="empty-icon">🧪</div><p>Chọn món để xem công thức</p></div>';
-    }
+
+    document.getElementById('dishList').innerHTML = html;
+    document.getElementById('recipeDetail').innerHTML = '<div class="empty-state"><div class="empty-icon">🧪</div><p>Chọn món để xem công thức</p></div>';
 }
 
 function selectDish(productId, dishName, size, element) {
     selectedDishId = productId;
-    
-    
-    // Highlight selected dish
-    document.querySelectorAll('.dish-item').forEach(el => {
-        el.classList.remove('selected');
-    });
+    document.querySelectorAll('.dish-item').forEach(el => el.classList.remove('selected'));
     element?.classList.add('selected');
-    
-    // Load recipe từ dữ liệu
+
     const order = ordersData[selectedOrderId];
-    if (!order) {
-        console.error('Order not found!');
-        return;
-    }
-    
+    if (!order) return;
     const item = order.items.find(i => i.product_id === productId);
-    if (!item) {
-        console.error('Item not found!', productId);
-        return;
-    }
-    
-    
+    if (!item) return;
+
     if (!item.recipes || item.recipes.length === 0) {
         document.getElementById('recipeDetail').innerHTML = `
             <div class="empty-state">
@@ -632,11 +513,11 @@ function selectDish(productId, dishName, size, element) {
         `;
         return;
     }
-    
+
     let html = `<h4 style="margin-bottom: 15px;">☕ ${dishName}</h4>`;
     html += `<p style="margin-bottom: 15px; color: #666;"><strong>Size:</strong> ${size}</p>`;
     html += `<hr>`;
-    
+
     item.recipes.forEach(recipe => {
         const qty = recipe.quantity || 0;
         html += `
@@ -653,23 +534,8 @@ function selectDish(productId, dishName, size, element) {
             </div>
         `;
     });
-    
+
     document.getElementById('recipeDetail').innerHTML = html;
-}
-
-syncDashboard();
-setInterval(syncDashboard, 5000);
-
-function setCount(id, count) {
-    const el = document.getElementById(id);
-    if (el) el.textContent = count;
-}
-
-function refreshNotificationBadge() {
-    const badge = document.getElementById('notificationBadge');
-    if (!badge) return;
-    badge.textContent = notificationCount;
-    badge.classList.toggle('hidden', notificationCount <= 0);
 }
 
 function markNotificationsRead() {
@@ -678,32 +544,9 @@ function markNotificationsRead() {
     syncDashboard();
 }
 
-function pulseBell() {
-    const btn = document.getElementById('notificationBell');
-    if (!btn) return;
-    btn.animate([{ transform: 'scale(1)' }, { transform: 'scale(1.12)' }, { transform: 'scale(1)' }], { duration: 380, iterations: 1 });
-}
-
-function buildCompletedBadge(orderId, orderNumber, orderTime, customerName) {
-    const badge = document.createElement('div');
-    badge.className = 'completed-badge';
-    badge.dataset.orderId = orderId;
-    badge.innerHTML = `
-        <div class="completed-code">
-            <a href="/orders/${orderId}/" target="_blank" style="color: inherit; text-decoration: none;">
-                ${orderNumber} 🔗
-            </a>
-        </div>
-        <div class="completed-time">${orderTime}</div>
-        ${customerName ? `<div class="completed-time">${customerName}</div>` : ''}
-    `;
-    return badge;
-}
-
 function completeOrder(orderId) {
-    
     if (!confirm('Xác nhận đơn này đã hoàn thành?')) return;
-    
+
     fetch(`/orders/api/${orderId}/status/`, {
         method: 'POST',
         headers: {
@@ -715,30 +558,7 @@ function completeOrder(orderId) {
     .then(r => r.json())
     .then(data => {
         if (data.success) {
-            if (notificationCount > 0) {
-                notificationCount = Math.max(0, notificationCount - 1);
-                refreshNotificationBadge();
-            }
-            const pendingHeader = document.querySelector('.barista-grid .barista-panel:nth-child(1) .panel-header');
-            const completedHeader = document.querySelector('.barista-grid .barista-panel:nth-child(4) .panel-header');
-            const pendingOrders = document.querySelectorAll('.barista-grid .barista-panel:nth-child(1) .order-badge');
-            const completedList = document.getElementById('completedOrderList');
-            const orderBadge = [...pendingOrders].find(el => !!el.querySelector(`[onclick*="selectOrder(${orderId})"]`));
-
-            if (orderBadge) {
-                const orderNumber = orderBadge.querySelector('.order-code a')?.textContent?.replace(' 🔗', '').trim() || data.order_number || '';
-                const orderTime = orderBadge.querySelector('.order-time-small')?.textContent || '';
-                const customerName = orderBadge.querySelectorAll('.order-time-small')[1]?.textContent?.replace('👤 ', '').trim() || '';
-                orderBadge.remove();
-
-                if (completedList) {
-                    completedList.prepend(buildCompletedBadge(orderId, orderNumber, orderTime, customerName));
-                }
-
-                setCount('pendingCount', document.querySelectorAll('.barista-grid .barista-panel:nth-child(1) .order-badge').length);
-                setCount('completedCount', document.querySelectorAll('#completedOrderList .completed-badge').length);
-            }
-
+            syncDashboard();
             if (selectedOrderId === orderId) {
                 document.getElementById('dishList').innerHTML = `
                     <div class="empty-state">
@@ -755,15 +575,12 @@ function completeOrder(orderId) {
                 selectedOrderId = null;
                 selectedDishId = null;
             }
-            
             alert('✅ Đơn hàng đã hoàn thành!');
         } else {
-            console.error('[COMPLETE] Error:', data.message);
             alert('❌ Lỗi: ' + data.message);
         }
     })
     .catch(err => {
-        console.error('[COMPLETE] Fetch error:', err);
         alert('❌ Lỗi kết nối: ' + err.message);
     });
 }
@@ -782,6 +599,9 @@ function getCookie(name) {
     }
     return cookieValue;
 }
+
+refreshNotificationBadge();
+syncDashboard();
+setInterval(syncDashboard, 5000);
 </script>
 {% endblock %}
-

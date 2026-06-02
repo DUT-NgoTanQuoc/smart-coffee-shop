@@ -39,7 +39,12 @@ class OrderAdmin(admin.ModelAdmin):
     
     def mark_as_completed(self, request, queryset):
         """Action đánh dấu đơn hàng hoàn thành"""
-        count = queryset.update(status='completed')
+        count = 0
+        for order in queryset:
+            if order.status != 'completed':
+                order.status = 'completed'
+                order.save(update_fields=['status'])
+                count += 1
         self.message_user(request, f'Đã đánh dấu {count} đơn hàng là hoàn thành')
     mark_as_completed.short_description = 'Đánh dấu hoàn thành'
 

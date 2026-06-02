@@ -146,6 +146,12 @@ def seed_staff(target_add=80):
     existing_emails = set(email for email in Staff.objects.values_list('email', flat=True) if email)
 
     role_weights = [('cashier', 35), ('barista', 40), ('parttime', 20), ('manager', 5)]
+    hourly_salary_ranges = {
+        'manager': (60000, 75000),
+        'cashier': (43000, 50000),
+        'barista': (38000, 45000),
+        'parttime': (30000, 36000),
+    }
     role_pool = []
     for role, weight in role_weights:
         role_pool.extend([role] * weight)
@@ -156,14 +162,8 @@ def seed_staff(target_add=80):
         phone = random_phone(existing_phones)
         email = random_email(name, existing_emails)
         role = random.choice(role_pool)
-        if role == 'manager':
-            salary = random.randint(12000000, 20000000)
-        elif role == 'cashier':
-            salary = random.randint(7000000, 11000000)
-        elif role == 'barista':
-            salary = random.randint(6500000, 10000000)
-        else:
-            salary = random.randint(4500000, 8000000)
+        salary_min, salary_max = hourly_salary_ranges[role]
+        salary = random.randrange(salary_min, salary_max + 1000, 1000)
 
         hire_days_ago = random.randint(30, 1400)
         hire_date = timezone.localdate() - timedelta(days=hire_days_ago)

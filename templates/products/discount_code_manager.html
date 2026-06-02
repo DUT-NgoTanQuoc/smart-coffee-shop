@@ -17,12 +17,6 @@
     .discount-hero h2 {
         margin: 0;
         font-weight: 800;
-        letter-spacing: -0.03em;
-    }
-
-    .discount-hero p {
-        margin: 8px 0 0;
-        color: rgba(255,255,255,0.85);
     }
 
     .stat-card {
@@ -46,7 +40,7 @@
     }
 
     .glass-panel {
-        background: rgba(255,255,255,0.92);
+        background: rgba(255, 255, 255, 0.92);
         border-radius: 22px;
         box-shadow: 0 18px 50px rgba(15, 23, 42, 0.08);
         border: 1px solid rgba(148, 163, 184, 0.18);
@@ -89,7 +83,20 @@
     }
 
     .create-box {
-        background: linear-gradient(180deg, rgba(236,253,245,0.95), rgba(255,255,255,0.98));
+        background: linear-gradient(180deg, rgba(236, 253, 245, 0.95), rgba(255, 255, 255, 0.98));
+    }
+
+    .hidden-form {
+        display: none;
+    }
+
+    .edit-row.hidden-form {
+        display: none;
+    }
+
+    .edit-panel {
+        background: #f3f4f6;
+        border-top: 1px solid #dbe3ee;
     }
 </style>
 
@@ -97,15 +104,14 @@
     <div class="d-flex flex-wrap justify-content-between align-items-start gap-3">
         <div>
             <h2><i class="bi bi-tags"></i> Quản lý mã giảm giá</h2>
-            <p>Tạo, sửa, xóa và xem toàn bộ mã giảm giá đang lưu trong database.</p>
         </div>
         <div class="d-flex gap-2">
             <a href="{% url 'product_list' %}" class="btn btn-light">
                 <i class="bi bi-arrow-left"></i> Về sản phẩm
             </a>
-            <a href="#create-form" class="btn btn-outline-light">
+            <button type="button" class="btn btn-outline-light" id="toggleCreateForm">
                 <i class="bi bi-plus-circle"></i> Tạo mã mới
-            </a>
+            </button>
         </div>
     </div>
 </div>
@@ -123,16 +129,10 @@
             <div class="stat-value">{{ discount_codes|dictsortreversed:"is_active"|length }}</div>
         </div>
     </div>
-    <div class="col-md-4">
-        <div class="stat-card">
-            <div class="stat-label">Trang này cập nhật trực tiếp DB</div>
-            <div class="stat-value">Yes</div>
-        </div>
-    </div>
 </div>
 
 <div class="row g-4">
-    <div class="col-lg-7">
+    <div class="col-lg-12">
         <div class="glass-panel p-0">
             <div class="p-4 border-bottom">
                 <div class="section-title mb-0"><i class="bi bi-card-list"></i> Danh sách mã hiện có</div>
@@ -173,8 +173,9 @@
                                 {% endif %}
                             </td>
                             <td class="text-end">
-                                <button class="btn btn-sm btn-outline-primary" data-bs-toggle="collapse" data-bs-target="#edit-{{ code.id }}">
+                                <button type="button" class="btn btn-sm btn-outline-primary edit-toggle" data-target="edit-{{ code.id }}">
                                     <i class="bi bi-pencil"></i>
+                                    Chỉnh sửa
                                 </button>
                                 <form method="post" action="{% url 'discount_code_delete' code.id %}" class="d-inline" onsubmit="return confirm('Xóa mã {{ code.code }}?');">
                                     {% csrf_token %}
@@ -184,9 +185,9 @@
                                 </form>
                             </td>
                         </tr>
-                        <tr class="collapse" id="edit-{{ code.id }}">
-                            <td colspan="6" class="bg-light">
-                                <form method="post" action="{% url 'discount_code_update' code.id %}" class="row g-3 p-3">
+                        <tr class="edit-row hidden-form" id="edit-{{ code.id }}">
+                            <td colspan="6" class="edit-panel">
+                                <form method="post" action="{% url 'discount_code_update' code.id %}" class="row g-3 p-3 discount-edit-form">
                                     {% csrf_token %}
                                     <div class="col-md-3">
                                         <label class="form-label">Mã</label>
@@ -210,11 +211,11 @@
                                     </div>
                                     <div class="col-md-4">
                                         <label class="form-label">Hiệu lực từ</label>
-                                        <input type="datetime-local" name="valid_from" class="form-control soft-input">
+                                        <input type="datetime-local" name="valid_from" class="form-control soft-input" value="{% if code.valid_from %}{{ code.valid_from|date:'Y-m-d\\TH:i' }}{% endif %}">
                                     </div>
                                     <div class="col-md-4">
                                         <label class="form-label">Hiệu lực đến</label>
-                                        <input type="datetime-local" name="valid_to" class="form-control soft-input">
+                                        <input type="datetime-local" name="valid_to" class="form-control soft-input" value="{% if code.valid_to %}{{ code.valid_to|date:'Y-m-d\\TH:i' }}{% endif %}">
                                     </div>
                                     <div class="col-md-12">
                                         <label class="form-label">Mô tả</label>
@@ -234,7 +235,7 @@
                         </tr>
                         {% empty %}
                         <tr>
-                            <td colspan="6" class="text-center text-muted py-5">Chưa có mã giảm giá nào. Hãy tạo mã đầu tiên ở khung bên phải.</td>
+                            <td colspan="6" class="text-center text-muted py-5">Chưa có mã giảm giá nào.</td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -242,8 +243,10 @@
             </div>
         </div>
     </div>
+</div>
 
-    <div class="col-lg-5" id="create-form">
+<div class="row g-4 mt-1 hidden-form" id="createFormWrap">
+    <div class="col-12">
         <div class="glass-panel create-box p-4">
             <div class="section-title">
                 <i class="bi bi-plus-circle"></i> Tạo mã giảm giá mới
@@ -298,4 +301,33 @@
         </div>
     </div>
 </div>
+
+<script>
+    const toggleBtn = document.getElementById('toggleCreateForm');
+    const createWrap = document.getElementById('createFormWrap');
+    if (toggleBtn && createWrap) {
+        toggleBtn.addEventListener('click', () => {
+            createWrap.classList.toggle('hidden-form');
+            if (!createWrap.classList.contains('hidden-form')) {
+                createWrap.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        });
+    }
+
+    document.querySelectorAll('.edit-toggle').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const targetId = btn.dataset.target;
+            const row = document.getElementById(targetId);
+            if (!row) return;
+            const open = row.classList.contains('hidden-form');
+            document.querySelectorAll('.edit-row').forEach(other => {
+                if (other.id !== targetId) other.classList.add('hidden-form');
+            });
+            row.classList.toggle('hidden-form');
+            if (open) {
+                row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        });
+    });
+</script>
 {% endblock %}
