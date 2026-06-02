@@ -192,6 +192,12 @@
         font-size: 2rem;
         margin-bottom: 10px;
     }
+
+    .inline-status {
+        margin-top: 10px;
+        font-size: 13px;
+        color: #dc2626;
+    }
 </style>
 
 <div class="barista-grid">
@@ -274,6 +280,7 @@
             <span><i class="bi bi-check-circle"></i> Đã hoàn thành (<span id="completedCount">{{ completed_orders|length }}</span>)</span>
         </div>
         <div class="panel-body">
+            <div id="dashboardStatus"></div>
             {% if completed_orders %}
             <div class="completed-list" id="completedOrderList">
                 {% for order in completed_orders %}
@@ -307,6 +314,7 @@ let notificationCount = Number('{{ notification_count|default:0 }}');
 let ordersData = JSON.parse('{{ orders_data_json|escapejs }}');
 let knownPendingIds = new Set(Object.keys(ordersData));
 let knownCompletedIds = new Set(Array.from(document.querySelectorAll('#completedOrderList .completed-badge')).map(el => String(el.dataset.orderId || '')));
+let dashboardStatusTimer = null;
 
 function escapeHtml(text) {
     return String(text || '').replace(/[&<>"']/g, function (ch) {
@@ -324,6 +332,22 @@ function refreshNotificationBadge() {
     if (!badge) return;
     badge.textContent = notificationCount;
     badge.classList.toggle('hidden', notificationCount <= 0);
+}
+
+function showDashboardStatus(message, level) {
+    const target = document.getElementById('dashboardStatus');
+    if (!target) return;
+    target.textContent = message || '';
+    target.className = 'inline-status';
+    target.style.color = level === 'success' ? '#16a34a' : '#dc2626';
+    if (dashboardStatusTimer) {
+        clearTimeout(dashboardStatusTimer);
+    }
+    if (message) {
+        dashboardStatusTimer = setTimeout(function () {
+            target.textContent = '';
+        }, 2500);
+    }
 }
 
 function pulseBell() {
@@ -380,7 +404,10 @@ function renderCompletedOrders(completedOrders) {
     const bodyEl = document.querySelector('.barista-grid .barista-panel:nth-child(4) .panel-body');
     if (!bodyEl) return;
 
-    if (!completedOrders || completedOrders.length === 0) {
+    const todayPrefix = '{{ today_order_prefix|default:"" }}';
+    const filteredCompleted = (completedOrders || []).filter(order => String(order.order_number || '').startsWith(todayPrefix));
+
+    if (!filteredCompleted.length) {
         bodyEl.innerHTML = `
             <div class="empty-state">
                 <div class="empty-icon">📭</div>
@@ -391,7 +418,7 @@ function renderCompletedOrders(completedOrders) {
         return;
     }
 
-    const html = completedOrders.map(order => `
+    const html = filteredCompleted.map(order => `
         <div class="completed-badge" data-order-id="${order.id}">
             <div class="completed-code">
                 <a href="/orders/${order.id}/" target="_blank" style="color: inherit; text-decoration: none;">
@@ -409,7 +436,7 @@ function renderCompletedOrders(completedOrders) {
         bodyEl.innerHTML = `<div class="completed-list" id="completedOrderList">${html}</div>`;
     }
 
-    setCount('completedCount', completedOrders.length);
+    setCount('completedCount', filteredCompleted.length);
 }
 
 function syncDashboard() {
@@ -575,13 +602,13 @@ function completeOrder(orderId) {
                 selectedOrderId = null;
                 selectedDishId = null;
             }
-            alert('✅ Đơn hàng đã hoàn thành!');
         } else {
-            alert('❌ Lỗi: ' + data.message);
+            showDashboardStatus(data.message || 'Không thể hoàn thành đơn hàng.', 'error');
         }
     })
     .catch(err => {
-        alert('❌ Lỗi kết nối: ' + err.message);
+        console.error('Complete order error:', err);
+        showDashboardStatus('Không thể kết nối tới máy chủ.', 'error');
     });
 }
 

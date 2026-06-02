@@ -62,6 +62,23 @@ def _has_any_role(user, *allowed_roles):
     return _resolve_user_role(user) in set(allowed_roles)
 
 
+def _today_order_prefix(moment=None):
+    if moment is None:
+        return f"ORD{timezone.localdate():%Y%m%d}"
+    moment = timezone.localtime(moment)
+    return f"ORD{moment.strftime('%Y%m%d')}"
+
+
+def _completed_today_queryset(moment=None):
+    moment = moment or timezone.localtime(timezone.now())
+    today_prefix = _today_order_prefix(moment)
+    return (
+        Order.objects.filter(status='completed', order_number__startswith=today_prefix)
+        .select_related('customer', 'staff')
+        .order_by('-order_date')
+    )
+
+
 @login_required
 def admin_dashboard(request):
     """Legacy admin dashboard path -> redirect to the unified dashboard."""
@@ -106,6 +123,7 @@ def barista_dashboard(request):
         return redirect('dashboard')
 
     now = timezone.now()
+    today_prefix = _today_order_prefix(now)
 
     pending_orders = (
         Order.objects.filter(status__in=['pending', 'preparing'])
@@ -114,11 +132,7 @@ def barista_dashboard(request):
         .order_by('order_date')
     )
 
-    completed_orders = (
-        Order.objects.filter(status='completed', order_date__date=now.date())
-        .select_related('customer', 'staff')
-        .order_by('-order_date')
-    )
+    completed_orders = list(_completed_today_queryset(now))
 
     low_stock = Ingredient.objects.filter(quantity__lte=F('min_quantity')).order_by('name')
 
@@ -163,6 +177,7 @@ def barista_dashboard(request):
         {
             'pending_orders': pending_orders,
             'completed_orders': completed_orders,
+            'today_order_prefix': today_prefix,
             'low_stock_ingredients': low_stock,
             'queue_count': pending_orders.count(),
             'notification_count': notification_count,
@@ -178,6 +193,7 @@ def barista_dashboard_data(request):
         return JsonResponse({'success': False, 'message': 'Unauthorized'}, status=403)
 
     now = timezone.now()
+    today_prefix = _today_order_prefix(now)
     pending_orders = (
         Order.objects.filter(status__in=['pending', 'preparing'])
         .select_related('customer', 'staff')
@@ -185,11 +201,7 @@ def barista_dashboard_data(request):
         .order_by('order_date')
     )
 
-    completed_orders = (
-        Order.objects.filter(status='completed', order_date__date=now.date())
-        .select_related('customer', 'staff')
-        .order_by('-order_date')
-    )
+    completed_orders = _completed_today_queryset(now)
 
     orders_data = {}
     for order in pending_orders:
@@ -242,6 +254,7 @@ def barista_dashboard_data(request):
             'completed_count': completed_orders.count(),
             'pending_orders': orders_data,
             'completed_orders': completed_list,
+            'today_order_prefix': today_prefix,
         }
     )
 

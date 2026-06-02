@@ -235,7 +235,7 @@ function selectProduct(productCard) {
         if (directPrice > 0) {
             addItem('N/A', directPrice);
         } else {
-            alert('Sản phẩm này chưa có giá.');
+            console.warn('Product has no price:', currentProduct);
         }
         return;
     }
@@ -438,7 +438,6 @@ function applyDiscountCode() {
 
 function processOrder() {
     if (cart.length === 0) {
-        alert('Giỏ hàng trống!');
         return;
     }
 
@@ -469,7 +468,6 @@ function processOrder() {
     .then(function(response) { return response.json(); })
     .then(function(data) {
         if (data.success) {
-            alert('Đơn hàng ' + data.order_number + ' đã được tạo thành công!');
             cart = [];
             customer = null;
             appliedDiscount = null;
@@ -480,11 +478,11 @@ function processOrder() {
             document.getElementById('discountCodeInfo').className = 'text-muted d-block mt-1';
             updateCart();
         } else {
-            alert('Lỗi: ' + data.message);
+            console.error('Create order failed:', data.message);
         }
     })
     .catch(function(error) {
-        alert('Lỗi kết nối: ' + error);
+        console.error('Create order connection error:', error);
     });
 }
 </script>
